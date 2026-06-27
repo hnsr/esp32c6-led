@@ -18,5 +18,4 @@ sudo `which espflash` flash --monitor --chip esp32c6 target/riscv32imac-unknown-
 
 # Monitor output through serial/JTAG
 sudo `which espflash` monitor --chip esp32c6
-
 ```

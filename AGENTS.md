@@ -1,10 +1,15 @@
 # Project Agent Notes
 
-This is a small Rust firmware project for learning ESP32-C6 development on an ESP32-C6 Super Mini style board.
+This is a small Rust firmware project for learning ESP32-C6
+development on an ESP32-C6 Super Mini style board.
 
 ## Project Principle
 
-This is not a vibe-coded project. The primary goal is learning embedded Rust and ESP32-C6 development, not maximizing implementation speed. Avoid generating code unless the user explicitly asks for it; prefer explanations, references to existing code, small examples, and focused guidance.
+This is not a vibe-coded project. The primary goal is learning
+embedded Rust and ESP32-C6 development, not maximizing implementation
+speed. Avoid generating code unless the user explicitly asks for
+it; prefer explanations, references to existing code, small
+examples, and focused guidance.
 
 ## Shape
 
@@ -36,7 +41,8 @@ cargo build --release
 cargo run
 ```
 
-This expands to `espflash flash --monitor --chip esp32c6`; it requires `espflash` installed and a connected board.
+This expands to `espflash flash --monitor --chip esp32c6`;
+it requires `espflash` installed and a connected board.
 
 ## Important Dependencies
 
