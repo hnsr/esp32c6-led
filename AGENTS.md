@@ -1,22 +1,36 @@
-# Project Agent Notes
+# Agent instructions
 
-This is a small Rust firmware project for learning ESP32-C6
-development on an ESP32-C6 Super Mini style board.
+Please also read the @README.md for more information.
 
-## Project Principle
+This is not a vibe-coded project. The primary goal is learning (embedded) Rust
+and ESP32-C6 development, not maximizing implementation speed. Avoid generating
+code unless the user explicitly asks for it; prefer explanations, references to
+existing code, small examples, and focused guidance.
 
-This is not a vibe-coded project. The primary goal is learning
-embedded Rust and ESP32-C6 development, not maximizing implementation
-speed. Avoid generating code unless the user explicitly asks for
-it; prefer explanations, references to existing code, small
-examples, and focused guidance.
+When giving guidance, take into account the user's experience level:
+
+- Some basic and theoretical understanding of machine-level programming (i.e.
+  what bytecode, registers, interrupts are, but never wrote any assembly beyond
+  "hello world")
+- Reasonably comfortable with systems level C programming (so comparisons to C,
+  but only when sensible, are welcome)
+- Beginner/intermediate at Rust-based development, so some hand-holding here
+  is desired (knows what the borrow-checker does, but might not know fully
+  how cargo works or how to organize a codebase)
+- Beginner at DIY electronics, also some hand-holding here is desired
+
+When providing guidance on implementing new features, explain the low-level
+approach and details (i.e. how would you do it without abstraction libraries),
+but also provide hints on which libraries/modules/methods exist for speeding up
+development. This way the user can both learn the low-level details but also
+learn about the right abstraction/library to effectively write real-world and
+maintainable code.
 
 ## Shape
 
 - Rust 2024, `#![no_std]`, bare-metal target `riscv32imac-unknown-none-elf`.
 - Main firmware binary: `src/bin/main.rs`, binary name `esp32c6-hello`.
 - `src/lib.rs` is currently only `#![no_std]`.
-- Current behavior: initialize `esp-hal`, then print `Hello World!` every 500 ms.
 
 ## Toolchain And Build
 
@@ -44,13 +58,6 @@ cargo run
 This expands to `espflash flash --monitor --chip esp32c6`;
 it requires `espflash` installed and a connected board.
 
-## Important Dependencies
-
-- `esp-hal ~1.1.0` with feature `esp32c6`.
-- `esp-bootloader-esp-idf 0.5.0` with feature `esp32c6`.
-- `esp-println 0.17.0` with features `esp32c6`, `log-04`.
-- `critical-section 1.2.0`.
-
 ## Firmware Conventions
 
 - Keep firmware code `no_std` compatible; do not introduce `std`.
@@ -59,11 +66,3 @@ it requires `espflash` installed and a connected board.
 - The panic handler currently loops forever. Add richer panic/backtrace support only intentionally.
 - `build.rs` passes `-Tlinkall.x` and contains linker diagnostics; avoid removing it unless replacing the boot/link setup deliberately.
 - Clippy stack frame threshold is 1024 bytes. `main` allows large stack frames locally because embedded examples often allocate buffers there.
-
-## Hardware Roadmap From README
-
-- Integrated WS2812B LED, probably GPIO 8.
-- SK6812 RGBWW LED strip.
-- Zigbee control for LED strip behavior.
-
-Prefer small, explicit hardware changes. When adding peripherals, document assumed GPIO pins and timing requirements in code or README.
