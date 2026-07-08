@@ -2,10 +2,10 @@
 
 Please also read the @README.md for more information.
 
-This is not a vibe-coded project. The primary goal is learning (embedded) Rust
-and ESP32-C6 development, not maximizing implementation speed. Avoid generating
-code unless the user explicitly asks for it; prefer explanations, references to
-existing code, small examples, and focused guidance.
+Do not create or modify code. The primary goal is learning (embedded) Rust
+and ESP32 development, not maximizing implementation speed. Prefer explanations,
+references to existing code, small examples, and focused guidance. When providing
+longer code examples, generously annotate with comments.
 
 When giving guidance, take into account the user's experience level:
 
@@ -13,11 +13,9 @@ When giving guidance, take into account the user's experience level:
   what bytecode, registers, interrupts are, but never wrote any assembly beyond
   "hello world")
 - Reasonably comfortable with systems level C programming (so comparisons to C,
-  but only when sensible, are welcome)
-- Beginner/intermediate at Rust-based development, so some hand-holding here
-  is desired (knows what the borrow-checker does, but might not know fully
-  how cargo works or how to organize a codebase)
-- Beginner at DIY electronics, also some hand-holding here is desired
+  when sensible, are welcome)
+- Beginner/intermediate at Rust-based development
+- Beginner at DIY electronics.
 
 When providing guidance on implementing new features, explain the low-level
 approach and details (i.e. how would you do it without abstraction libraries),
@@ -57,12 +55,3 @@ cargo run
 
 This expands to `espflash flash --monitor --chip esp32c6`;
 it requires `espflash` installed and a connected board.
-
-## Firmware Conventions
-
-- Keep firmware code `no_std` compatible; do not introduce `std`.
-- Keep `#![no_main]` on the binary and use `#[esp_hal::main]`.
-- Keep `esp_bootloader_esp_idf::esp_app_desc!();`; it provides the ESP-IDF bootloader app descriptor.
-- The panic handler currently loops forever. Add richer panic/backtrace support only intentionally.
-- `build.rs` passes `-Tlinkall.x` and contains linker diagnostics; avoid removing it unless replacing the boot/link setup deliberately.
-- Clippy stack frame threshold is 1024 bytes. `main` allows large stack frames locally because embedded examples often allocate buffers there.

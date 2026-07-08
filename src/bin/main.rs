@@ -8,9 +8,32 @@
 #![deny(clippy::large_stack_frames)]
 
 use esp_hal::clock::CpuClock;
+use esp_hal::delay::Delay;
+use esp_hal::gpio::Level;
 use esp_hal::main;
-use esp_hal::time::{Duration, Instant};
-use esp_println::println;
+use esp_hal::rmt::{PulseCode, Rmt, TxChannelConfig, TxChannelCreator};
+use esp_hal::time::Rate;
+
+const WS2812_ZERO: PulseCode = PulseCode::new(Level::High, 24, Level::Low, 76);
+const WS2812_ONE: PulseCode = PulseCode::new(Level::High, 48, Level::Low, 52);
+
+fn led_frame(red: u8, green: u8, blue: u8, white: u8) -> [PulseCode; 33] {
+
+    let color = ((green as u32) << 24) | ((red as u32) << 16) | ((blue as u32) << 8) | (white as u32);
+
+    let mut pulses = [PulseCode::end_marker(); 33];
+
+    for (bit, pulse) in pulses[..32].iter_mut().enumerate() {
+        let mask = 1 << (31 - bit);
+        *pulse = if color & mask == 0 {
+            WS2812_ZERO
+        } else {
+            WS2812_ONE
+        };
+    }
+
+    pulses
+}
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -32,12 +55,33 @@ fn main() -> ! {
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.1.0/examples
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let _peripherals = esp_hal::init(config);
+    let peripherals = esp_hal::init(config);
+
+    // The integrated WS2812B-compatible RGB LED is connected to GPIO 8. At an
+    // 80 MHz RMT clock, one tick is 12.5 ns; each encoded bit totals 100 ticks.
+    let rmt = Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
+    let tx_config = TxChannelConfig::default()
+        .with_clk_divider(1)
+        .with_idle_output_level(Level::Low)
+        .with_idle_output(true);
+    let mut channel = rmt
+        .channel0
+        .configure_tx(&tx_config)
+        .unwrap()
+        .with_pin(peripherals.GPIO8);
+    let delay = Delay::new();
+
+    let mut red: u8 = 0;
+    let mut green: u8 = 80;
+    let mut blue: u8 = 160;
 
     loop {
-        let delay_start = Instant::now();
-        while delay_start.elapsed() < Duration::from_millis(500) {
-        }
-        println!("Hello World!");
+        red = red.wrapping_add(1);
+        green = green.wrapping_add(2);
+        blue = blue.wrapping_add(3);
+
+        channel = channel.transmit(&led_frame(red, green, blue, 0)).unwrap().wait().unwrap();
+
+        delay.delay_millis(25);
     }
 }
