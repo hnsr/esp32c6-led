@@ -21,3 +21,15 @@ sudo `which espflash` flash --monitor --chip esp32c6 target/riscv32imac-unknown-
 # Monitor output through serial/JTAG
 sudo `which espflash` monitor --chip esp32c6
 ```
+
+## LED rendering
+
+Ultimately, a series of RGBW pulsecodes need to be constructed and sent off with RMT.
+
+To allow implementing interesting effects in a convenient way, the LED renderer takes callbacks:
+
+- layout: given a LED position, it should return a stable 1/2/3D coordinate
+- transform: given a coordinate and time, return a modified coordinate
+- shader: given a coordinate and time, return RGBW color
+
+The renderer will take the resulting RGBW colors, construct the pulsecodes and drive the LED strip.
