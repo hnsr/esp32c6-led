@@ -1,10 +1,12 @@
 # esp32c6-hello
 
-This is a little project to learn rust-based development for an esp32-c6 (super mini) board.
+This is a little project to learn rust-based development for an esp32-c6 (super mini)
+board, that I want to use for some DIY LED strip projects.
 
 - [x] Hello world
-- [ ] Manipulate integrated WS2812B LED (GPIO 8?)
-- [ ] Wire up and drive SK6812 RGBWW LED strip
+- [x] Manipulate integrated WS2812B LED (GPIO 8?)
+- [x] Wire up and drive SK6812 RGBWW LED strip
+- [ ] Implement full LED strip rendering loop and color control
 - [ ] Implement Zigbee for basic LED strip control
 
 ## Compiling, flashing, monitoring:
