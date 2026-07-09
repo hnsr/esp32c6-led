@@ -14,6 +14,7 @@ use esp_hal::main;
 use esp_hal::rmt::{PulseCode, Rmt, TxChannelConfig, TxChannelCreator};
 use esp_hal::time::Rate;
 use esp_hal::time::Instant;
+use esp_hal::rng::Rng;
 use esp_println::println;
 
 const WS2812_ZERO: PulseCode = PulseCode::new(Level::High, 24, Level::Low, 76);
@@ -62,28 +63,50 @@ struct Coord {
 
 #[derive(Copy, Clone)]
 struct Rgbw {
-    red: u8,
-    green: u8,
-    blue: u8,
-    white: u8,
+    red: f32,
+    green: f32,
+    blue: f32,
+    white: f32
+}
+
+struct RenderContext<'a> {
+    brightness: f32,
+    led_count: usize,
+    time_s: f32,
+    rng: &'a Rng,
+}
+
+
+fn unit_f32_to_u8(value: f32) -> u8 {
+    (value.clamp(0.0, 1.0) * 255.0) as u8
+}
+
+fn random_unit(rng: &Rng) -> f32 {
+    (rng.random() >> 8) as f32 / 16_777_215.0
 }
 
 fn render<Layout, Shader>(
-    led_count: usize,
-    time_s: f32,
+    ctx: &mut RenderContext,
     buffer: &mut [PulseCode],
     mut layout: Layout,
     mut shader: Shader
 )
 where
-    Layout: FnMut(usize, f32) -> Coord,
-    Shader: FnMut(Coord, f32) -> Rgbw,
+    Layout: FnMut(&mut RenderContext, usize) -> Coord,
+    Shader: FnMut(&mut RenderContext, Coord) -> Rgbw,
 {
-    for index in 0..led_count {
-        let coord = layout(index, time_s);
-        let rgbw = shader(coord, time_s);
+    let led_count = ctx.led_count;
 
-        let pulses = led_frame(rgbw.red, rgbw.green, rgbw.blue, rgbw.white);
+    for index in 0..led_count {
+        let coord = layout(ctx, index);
+        let rgbw = shader(ctx, coord);
+
+        let pulses = led_frame(
+            unit_f32_to_u8(rgbw.red * ctx.brightness),
+            unit_f32_to_u8(rgbw.green * ctx.brightness),
+            unit_f32_to_u8(rgbw.blue * ctx.brightness),
+            unit_f32_to_u8(rgbw.white * ctx.brightness),
+        );
 
         let target = &mut buffer[(index * 32)..((index+1) * 32)];
 
@@ -96,7 +119,7 @@ where
     buffer_end[0] = marker;
 }
 
-fn coord_identity(index: usize, time_s: f32) -> Coord {
+fn coord_identity(ctx: &mut RenderContext, index: usize) -> Coord {
     Coord {
         x: index as f32,
         y: 0.0,
@@ -104,12 +127,12 @@ fn coord_identity(index: usize, time_s: f32) -> Coord {
     }
 }
 
-fn shader_white(coord: Coord, time_s: f32) -> Rgbw {
+fn shader_random(ctx: &mut RenderContext, coord: Coord) -> Rgbw {
     Rgbw {
-        red: 32,
-        green: 0,
-        blue: 0,
-        white: 128,
+        red: random_unit(ctx.rng),
+        green: random_unit(ctx.rng),
+        blue: random_unit(ctx.rng),
+        white: 0.0
     }
 }
 
@@ -143,15 +166,23 @@ fn main() -> ! {
     // Buffer holding 32 pulsecodes for each encoded LED color, plus end marker
     let mut buffer = [PulseCode::end_marker(); MAX_LEDS * 32 + 1];
 
-    let led_count = 10;
+    let rng = Rng::new();
+
+    let mut ctx = RenderContext {
+        brightness: 0.1,
+        led_count: 90,
+        time_s: 0.0,
+        rng: &rng,
+    };
 
     loop {
-        let time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1000000.0;
+        // fixme: using f32 might not be stable for long uptimes
+        ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1000000.0;
 
         // fixme: check buffer bounds
-        render(led_count, time_s, &mut buffer, coord_identity, shader_white);
+        render(&mut ctx, &mut buffer, coord_identity, shader_random);
 
-        channel = channel.transmit(&buffer[0..led_count * 32 + 1]).unwrap().wait().unwrap();
+        channel = channel.transmit(&buffer[0..ctx.led_count * 32 + 1]).unwrap().wait().unwrap();
 
         delay.delay_millis(25);
     }
