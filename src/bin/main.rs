@@ -136,6 +136,23 @@ fn shader_random(ctx: &mut RenderContext, coord: Coord) -> Rgbw {
     }
 }
 
+fn shader_pulsate(ctx: &mut RenderContext, coord: Coord) -> Rgbw {
+    let phase = ctx.time_s * core::f32::consts::TAU + coord.x;
+    let wave = (libm::sinf(phase) + 1.0) * 0.5;
+    let base_color = Rgbw {
+        red: 0.0,
+        green: 0.0,
+        blue: 0.0,
+        white: 1.0,
+    };
+    Rgbw {
+        red: base_color.red * wave,
+        green: base_color.green * wave,
+        blue: base_color.blue * wave,
+        white: base_color.white * wave,
+    }
+}
+
 #[allow(
     clippy::large_stack_frames,
     reason = "it's not unusual to allocate larger buffers etc. in main"
@@ -180,7 +197,7 @@ fn main() -> ! {
         ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1000000.0;
 
         // fixme: check buffer bounds
-        render(&mut ctx, &mut buffer, coord_identity, shader_random);
+        render(&mut ctx, &mut buffer, coord_identity, shader_pulsate);
 
         channel = channel.transmit(&buffer[0..ctx.led_count * 32 + 1]).unwrap().wait().unwrap();
 
