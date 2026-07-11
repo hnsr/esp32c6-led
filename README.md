@@ -1,4 +1,4 @@
-# esp32c6-hello
+# esp32c6-led
 
 This is a little project to learn rust-based development for an esp32-c6 (super mini)
 board, that I want to use for some DIY LED strip projects.
@@ -16,7 +16,7 @@ board, that I want to use for some DIY LED strip projects.
 cargo run --release
 
 # Flashing previously built binary using sudo:
-sudo `which espflash` flash --monitor --chip esp32c6 target/riscv32imac-unknown-none-elf/release/esp32c6-hello
+sudo `which espflash` flash --monitor --chip esp32c6 target/riscv32imac-unknown-none-elf/release/esp32c6-led
 
 # Monitor output through serial/JTAG
 sudo `which espflash` monitor --chip esp32c6
