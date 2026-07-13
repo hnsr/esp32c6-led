@@ -55,7 +55,7 @@ fn main() -> ! {
     let mut layout = Linear {};
     let mut effect = PulsatingColor {};
     let mut driver = Ws2812RmtDriver::new(peripherals);
-    let mut ctx = RenderContext::new(&rng, 90, 0.1);
+    let mut ctx = RenderContext::new(&rng, 20, 0.1);
 
     println!("Starting rendering loop.");
 
