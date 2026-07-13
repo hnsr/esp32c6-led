@@ -63,7 +63,7 @@ impl Driver for Ws2812RmtDriver<'_> {
     fn write_led(&mut self, index: usize, color: Rgbw) {
         // Write single color to buffer.
 
-        assert!(index <= MAX_LEDS);
+        assert!(index < MAX_LEDS);
 
         let slice = &mut self.buffer[index * 32..(index + 1)*32];
         let pulses = get_pulsecodes_for_color(
@@ -78,22 +78,14 @@ impl Driver for Ws2812RmtDriver<'_> {
 
     fn end_frame(&mut self) {
         // Write end-marker to buffer and transmit using RMT channel.
+        let end_marker_index = (self.max_index + 1) * 32;
+        self.buffer[end_marker_index] = PulseCode::end_marker();
 
-        let pulse = PulseCode::end_marker();
-
-        // fixme: validate range math
-        let end_slot = &mut self.buffer[(self.max_index+1) * 32..(self.max_index+2)*32];
-
-        end_slot[0] = pulse;
-
+        // We have to take() self.channel here so it can be moved into transmit(), after which we moved it back in
         let channel = self.channel.take().unwrap();
-
-        // fixme: is range upper bound correct here? if we rendered 2 LEDS, max_index will be 1, and we need to render slots 0, 1, 2, so range 0 .. 3?
-        let channel = channel.transmit(&self.buffer[0 .. self.max_index * 32 + 1]).unwrap().wait().unwrap();
-
+        let channel = channel.transmit(&self.buffer[.. end_marker_index + 1]).unwrap().wait().unwrap();
         self.channel = Some(channel);
 
-        // fixme: just reset in begin_frame?
         self.max_index = 0;
     }
 }

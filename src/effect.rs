@@ -29,7 +29,7 @@ impl Effect for PulsatingColor {
         let phase = ctx.time_s * core::f32::consts::TAU + coord.x;
         let wave = (libm::sinf(phase) + 1.0) * 0.5;
         let base_color = Rgbw {
-            red: 0.0,
+            red: 1.0,
             green: 0.0,
             blue: 0.0,
             white: 1.0,
