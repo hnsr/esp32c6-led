@@ -25,8 +25,9 @@ espflash monitor --chip esp32c6
 
 ## TODO
 
-- [ ] Fully implement LED rendering system
-- [ ] Implement Zigbee control
+- [ ] Implement Zigbee base_color control
+- [ ] Implement a robust, fixed refresh rate rendering loop
+- [ ] Implement more effects, layouts
 - [ ] Implement configuration system (web interface?)
 - [ ] Implement browser-based mock renderer for effect development 
 
