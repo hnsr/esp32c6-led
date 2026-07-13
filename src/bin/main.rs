@@ -13,6 +13,7 @@ use esp_hal::main;
 use esp_hal::time::Instant;
 use esp_hal::rng::Rng;
 use esp_println::println;
+use esp32c6_led::color::Rgbw;
 use esp32c6_led::driver::Ws2812RmtDriver;
 use esp32c6_led::effect::PulsatingColor;
 use esp32c6_led::layout::Linear;
@@ -55,7 +56,12 @@ fn main() -> ! {
     let mut layout = Linear {};
     let mut effect = PulsatingColor {};
     let mut driver = Ws2812RmtDriver::new(peripherals);
-    let mut ctx = RenderContext::new(&rng, 20, 0.1);
+    let mut ctx = RenderContext::new(&rng, 20, Rgbw {
+        red: 1.0,
+        green: 0.0,
+        blue: 0.0,
+        white: 1.0,
+    }, 0.1);
 
     println!("Starting rendering loop.");
 

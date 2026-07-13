@@ -1,9 +1,11 @@
 use esp_hal::rng::Rng;
+use crate::color::Rgbw;
 use crate::layout::Layout;
 use crate::driver::Driver;
 use crate::effect::Effect;
 
 pub struct RenderContext<'a> {
+    pub base_color: Rgbw,
     pub brightness: f32,
     pub led_count: usize,
     pub time_s: f32,
@@ -11,9 +13,10 @@ pub struct RenderContext<'a> {
 }
 
 impl<'a> RenderContext<'a> {
-    pub fn new(rng: &'a Rng, led_count: usize, brightness: f32) -> Self {
+    pub fn new(rng: &'a Rng, led_count: usize, base_color: Rgbw, brightness: f32) -> Self {
 
         Self {
+            base_color,
             brightness,
             led_count,
             time_s: 0.0,

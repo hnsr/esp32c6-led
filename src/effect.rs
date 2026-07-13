@@ -9,6 +9,8 @@ pub trait Effect {
     fn get_color(&mut self, ctx: &RenderContext, index: usize, coord: Coord) -> Rgbw;
 }
 
+// todo: move to separate per-effect modules
+
 pub struct RandomColor {}
 
 impl Effect for RandomColor {
@@ -28,12 +30,7 @@ impl Effect for PulsatingColor {
     fn get_color(&mut self, ctx: &RenderContext, _index: usize, coord: Coord) -> Rgbw {
         let phase = ctx.time_s * core::f32::consts::TAU + coord.x;
         let wave = (libm::sinf(phase) + 1.0) * 0.5;
-        let base_color = Rgbw {
-            red: 1.0,
-            green: 0.0,
-            blue: 0.0,
-            white: 1.0,
-        };
+        let base_color = ctx.base_color;
         Rgbw {
             red: base_color.red * wave,
             green: base_color.green * wave,
