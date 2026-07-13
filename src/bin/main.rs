@@ -19,11 +19,10 @@ use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{render, RenderContext};
 
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    println!("PANIC: {info}");
     let delay = Delay::new();
-
     loop {
-        println!("oops!");
         delay.delay_millis(1000);
     }
 }
@@ -43,6 +42,7 @@ fn main() -> ! {
     // generator version: 1.3.0
     // generator parameters: --chip esp32c6
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.1.0/examples
+    println!("Initialising HAL.");
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -50,10 +50,14 @@ fn main() -> ! {
     let delay = Delay::new();
     let rng = Rng::new();
 
+    println!("Instantiating layout, effect and driver.");
+
     let mut layout = Linear {};
     let mut effect = PulsatingColor {};
     let mut driver = Ws2812RmtDriver::new(peripherals);
     let mut ctx = RenderContext::new(&rng, 90, 0.1);
+
+    println!("Starting rendering loop.");
 
     loop {
         // fixme: using f32 might not be stable for long uptimes

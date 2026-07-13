@@ -589,7 +589,6 @@ dependencies = [
 name = "esp32c6-led"
 version = "0.1.0"
 dependencies = [
- "critical-section",
  "esp-bootloader-esp-idf",
  "esp-hal",
  "esp-println",
