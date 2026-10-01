@@ -12,6 +12,11 @@ use zigbee_mac::esp::EspMlme;
 use zigbee_mac::mlme::{Mlme, ScanType};
 use embassy_embedded_hal::adapter::BlockingAsync;
 use esp_storage::FlashStorage;
+use zigbee::{DeviceConfig, LogicalType, NetworkConfig};
+use zigbee::nwk::nib::CapabilityInformation;
+use zigbee::types::IeeeAddress;
+use zigbee::zdo::config::DiscoveryType;
+
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -61,6 +66,49 @@ async fn main(_spawner: Spawner) -> ! {
     ).await;
 
     println!("Zigbee storage initialized");
+
+    let network_id_text = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/zigbee-network.txt",
+    ));
+    let extended_pan_id = u64::from_str_radix(network_id_text.trim(), 16)
+        .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
+
+    let network_config = NetworkConfig {
+        // Hardcoded address of my Hue network
+        extended_pan_id: IeeeAddress(extended_pan_id),
+        channels: 25..26,
+        scan_duration: 5,
+    };
+
+    let device_config = DeviceConfig {
+        logical_type: LogicalType::EndDevice,
+
+        // The capability byte sent during joining:
+        // bit 2: externally powered / mains-powered
+        // bit 3: receiver remains enabled when idle
+        // bit 7: request an allocated short network address
+        // bit 1 stays clear because we are an end device.
+        capability_information: CapabilityInformation(
+            (1 << 2) | (1 << 3) | (1 << 7),
+        ),
+
+        // Address-discovery policy: request a device's IEEE address
+        // when its short network address is already known
+        discovery_type: DiscoveryType::IEEE,
+
+        // Keep the Trust Center link-key exchange enabled
+        tc_link_key_exchange: true,
+    };
+
+    println!(
+        "Zigbee configuration: extended_PAN={:#018x}, channel={}, capabilities={:#04x}",
+        network_config.extended_pan_id.0,
+        network_config.channels.start,
+        device_config.capability_information.0,
+    );
+
+
 
     // Move ownership of the radio peripheral into its driver.
     let radio = Ieee802154::new(peripherals.IEEE802154);
