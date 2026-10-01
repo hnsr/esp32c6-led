@@ -10,6 +10,8 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_radio::ieee802154::Ieee802154;
 use zigbee_mac::esp::EspMlme;
 use zigbee_mac::mlme::{Mlme, ScanType};
+use embassy_embedded_hal::adapter::BlockingAsync;
+use esp_storage::FlashStorage;
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -42,6 +44,23 @@ async fn main(_spawner: Spawner) -> ! {
 
     // Reserve 24 KiB of RAM and register it with the global allocator.
     esp_alloc::heap_allocator!(size: 24 * 1024);
+
+    // Init flash storage with flash peripheral
+    let flash = FlashStorage::new(peripherals.FLASH);
+
+    // zigbee-rs expects an async flash interface, so we use the BlockingAsync adapter
+    // to provide and async interface
+    let flash = BlockingAsync::new(flash);
+
+    // Initialize Zigbee's in-memory state and restore saved values
+    let _storage = zigbee::storage::init_with_flash(
+        flash,
+        // Addresses are byte offsets from the beginning of flash.
+        // The upper bound is exclusive, matching the partition table (partitions.csv)
+        0x3f_0000..0x3f_4000,
+    ).await;
+
+    println!("Zigbee storage initialized");
 
     // Move ownership of the radio peripheral into its driver.
     let radio = Ieee802154::new(peripherals.IEEE802154);

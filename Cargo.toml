@@ -37,6 +37,18 @@ zigbee-mac = { version = "=0.1.0", features = ["esp32c6"] }
 # Needed for heap-allocated radio/MAC buffers
 esp-alloc = { version = "=0.10.0", features = ["esp32c6"] }
 
+# Zigbee stack, including support for storage (which we need for authentication/security purposes like storing keys and counters)
+zigbee = { version = "=0.1.0", features = ["storage"] }
+
+# Provides access to the ESP32-C6 flash memory
+esp-storage = { version = "=0.9.0", features = ["esp32c6"] }
+
+# Contains some utilities for working with flash memory
+embassy-embedded-hal = "=0.5.0"
+
+# Provides storage allocated at compile time but which can be initialized at runtime
+static_cell = "2.1"
+
 # For fine-tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]
 # The default debug profile is too slow and too big for resource-constrained devices.
