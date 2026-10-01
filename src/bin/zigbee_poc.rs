@@ -7,6 +7,9 @@ use embassy_executor::Spawner;
 use embassy_time::Timer;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
+use esp_radio::ieee802154::Ieee802154;
+use zigbee_mac::esp::EspMlme;
+use zigbee_mac::mlme::{Mlme, ScanType};
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -36,6 +39,44 @@ async fn main(_spawner: Spawner) -> ! {
 
     // Routes log messages from libraries to the serial output.
     esp_println::logger::init_logger_from_env();
+
+    // Reserve 24 KiB of RAM and register it with the global allocator.
+    esp_alloc::heap_allocator!(size: 24 * 1024);
+
+    // Move ownership of the radio peripheral into its driver.
+    let radio = Ieee802154::new(peripherals.IEEE802154);
+
+    // Move the driver into Zigbee's MAC adapter.
+    // Network discovery and joining will configure it further later.
+    let mac = EspMlme::new(
+        radio,
+        esp_radio::ieee802154::Config::default(),
+    );
+    println!("Device IEEE address: {:#018x}", mac.ieee_address());
+
+    println!("Scanning Zigbee channels 11–26...");
+
+    // Scan channels 11-26 (inclusive), listen for duration 5, on each channel.
+    match mac.scan_network(ScanType::Active, 11..27, 5).await {
+        Ok(result) => {
+            println!("Received {} network beacons", result.pan_descriptor.len());
+
+            for network in &result.pan_descriptor {
+                println!(
+                    "channel={} PAN={:#06x} extended_PAN={:#018x} sender={:?} LQI={} join_open={}",
+                    network.channel,
+                    network.coord_pan_id.0,
+                    network.zigbee_beacon.extended_pan_id.0,
+                    network.coord_address,
+                    network.link_quality,
+                    network.superframe_spec.association_permit,
+                );
+            }
+        }
+        Err(error) => {
+            println!("Scan failed: {error:?}");
+        }
+    }
 
     loop {
         println!("Async runtime is alive");
