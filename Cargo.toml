@@ -14,6 +14,14 @@ esp-bootloader-esp-idf = { version = "0.5.0", features = ["esp32c6"] }
 esp-println = { version = "0.17.0", features = ["esp32c6", "log-04"] }
 libm = "0.2"
 
+# Scheduling support and the Embassy integration for the ESP32-C6.
+esp-rtos = { version = "=0.3.0", features = ["esp32c6", "embassy", "log-04"] }
+embassy-executor = "=0.10.0"# Runs async tasks; provides the Spawner type used by async main.
+embassy-time = "=0.5.0" # Async timers, backed by the timer integration above.
+
+# Pinning esp32c6 PAC to known working version for Zigbee PoC to avoid breakage
+esp32c6-pac = { package = "esp32c6", version = "=0.23.2" }
+
 # For fine-tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]
 # The default debug profile is too slow and too big for resource-constrained devices.
