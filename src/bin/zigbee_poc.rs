@@ -25,6 +25,10 @@ use zigbee::zdo::descriptor::{
     DeviceDescriptorConfig, EndpointDescriptor,
     NodeDescriptorConfig, PowerDescriptorConfig,
 };
+use static_cell::StaticCell;
+use zigbee::zcl::clusters::general::basic::BasicServer;
+use zigbee::zcl::clusters::general::identify::IdentifyServer;
+use zigbee::zcl::server::UnsupportedClusterResponder;
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -61,6 +65,31 @@ static ENDPOINTS: [EndpointDescriptor<'static>; 1] = [
     },
 ];
 
+static BASIC: BasicServer<'static> = BasicServer {
+    zcl_version: 8,
+    application_version: 1,
+    stack_version: 0,
+    hw_version: 1,
+    manufacturer_name: "hnsr",
+    model_identifier: "esp32c6-led-poc",
+    power_source: 0x01,
+};
+
+static IDENTIFY: IdentifyServer = IdentifyServer::new();
+
+type ZigbeeFlash = zigbee::storage::FlashStorage<BlockingAsync<FlashStorage<'static>>>;
+
+type Handler = (
+    BasicServer<'static>,
+    &'static IdentifyServer,
+    UnsupportedClusterResponder<'static>,
+);
+
+type ZigbeeStack = zigbee::Stack<'static, EspMlme<'static>, Handler, ZigbeeFlash>;
+
+// Reserve static memory for the stack, initialisation is done later
+static STACK: StaticCell<ZigbeeStack> = StaticCell::new();
+
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default());
@@ -90,7 +119,7 @@ async fn main(_spawner: Spawner) -> ! {
     let flash = BlockingAsync::new(flash);
 
     // Initialize Zigbee's in-memory state and restore saved values
-    let _storage = zigbee::storage::init_with_flash(
+    let storage = zigbee::storage::init_with_flash(
         flash,
         // Addresses are byte offsets from the beginning of flash.
         // The upper bound is exclusive, matching the partition table (partitions.csv)
@@ -215,6 +244,23 @@ async fn main(_spawner: Spawner) -> ! {
             println!("Scan failed: {error:?}");
         }
     }
+
+    // The zigbee library tries tuple handlers from left to right, so the fallback goes last
+    let handler = (
+        BASIC,
+        &IDENTIFY,
+        UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
+    );
+
+    // Transfer ownership of the MAC, configuration, handlers, and storage
+    let stack: &'static ZigbeeStack = STACK.init(
+        zigbee::Stack::new(mac, stack_config, handler, storage),
+    );
+
+    println!(
+        "Zigbee stack constructed for channel {}",
+        stack.config().channel(),
+    );
 
     loop {
         println!("Async runtime is alive");
