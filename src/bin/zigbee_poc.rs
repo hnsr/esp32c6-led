@@ -81,6 +81,7 @@ static IDENTIFY: IdentifyServer = IdentifyServer::new();
 type ZigbeeFlash = zigbee::storage::FlashStorage<BlockingAsync<FlashStorage<'static>>>;
 
 type Handler = (
+    RequestLogger,
     BasicServer<'static>,
     &'static IdentifyServer,
     UnsupportedClusterResponder<'static>,
@@ -248,6 +249,7 @@ async fn main(spawner: Spawner) -> ! {
 
     // The zigbee library tries tuple handlers from left to right, so the fallback goes last
     let handler = (
+        RequestLogger,
         BASIC,
         &IDENTIFY,
         UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
@@ -267,24 +269,11 @@ async fn main(spawner: Spawner) -> ! {
         stack_task(stack).expect("Could not allocate Zigbee task"),
     );
 
-    // we suspend main until the device has joined the network (installed its network key).
-    stack.wait_until_joined().await;
-
-    let nib = zigbee::nwk::nib::get_ref();
-    println!(
-        "Network key installed: address={:#06x}, PAN={:#06x}",
-        *nib.network_address(),
-        *nib.panid(),
-    );
-
     loop {
         Timer::after_secs(1).await;
 
-        // Network-key installation can precede completion of the
-        // Trust Center link-key exchange, so report that separately.
         println!(
-            "Zigbee commissioning status: {:?}",
-            stack.bdb().commissioning_status(),
+            "Main task is alive!"
         );
 
         // Advance Identify's countdown. Later we'll blink an LED here.
@@ -307,4 +296,30 @@ async fn stack_task(stack: &'static ZigbeeStack) {
 
     // If it returns, print the reason and retain it for diagnosis.
     println!("Zigbee stack stopped: {outcome:?}");
+}
+
+use zigbee::zdo::{
+    ClusterReply, ClusterRequest, ClusterRequestHandler,
+};
+
+// A handler that logs requests and lets subsequent handlers run.
+struct RequestLogger;
+
+impl ClusterRequestHandler for RequestLogger {
+    fn handle(
+        &self,
+        request: &ClusterRequest<'_>,
+        _out: &mut [u8],
+    ) -> Option<ClusterReply> {
+        println!(
+            "Application request: profile={:#06x}, cluster={:#06x}, endpoint={}, bytes={:02x?}",
+            request.profile_id,
+            request.cluster_id,
+            request.dst_endpoint,
+            request.asdu,
+        );
+
+        // No response from this handler, continue through the tuple
+        None
+    }
 }
