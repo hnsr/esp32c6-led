@@ -9,7 +9,7 @@ use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
 use esp_radio::ieee802154::Ieee802154;
 use zigbee_mac::esp::EspMlme;
-use zigbee_mac::mlme::{Mlme, ScanType};
+//use zigbee_mac::mlme::{Mlme, ScanType};
 use embassy_embedded_hal::adapter::BlockingAsync;
 use esp_storage::FlashStorage;
 use zigbee::{DeviceConfig, LogicalType, NetworkConfig};
@@ -29,6 +29,7 @@ use static_cell::StaticCell;
 use zigbee::zcl::clusters::general::basic::BasicServer;
 use zigbee::zcl::clusters::general::identify::IdentifyServer;
 use zigbee::zcl::server::UnsupportedClusterResponder;
+use embassy_time::Delay as AsyncDelay;
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -91,7 +92,7 @@ type ZigbeeStack = zigbee::Stack<'static, EspMlme<'static>, Handler, ZigbeeFlash
 static STACK: StaticCell<ZigbeeStack> = StaticCell::new();
 
 #[esp_rtos::main]
-async fn main(_spawner: Spawner) -> ! {
+async fn main(spawner: Spawner) -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     // Move ownership of these hardware peripherals into their drivers.
@@ -221,29 +222,29 @@ async fn main(_spawner: Spawner) -> ! {
     );
     println!("Device IEEE address: {:#018x}", mac.ieee_address());
 
-    println!("Scanning Zigbee channels 11–26...");
-
-    // Scan channels 11-26 (inclusive), listen for duration 5, on each channel.
-    match mac.scan_network(ScanType::Active, 11..27, 5).await {
-        Ok(result) => {
-            println!("Received {} network beacons", result.pan_descriptor.len());
-
-            for network in &result.pan_descriptor {
-                println!(
-                    "channel={} PAN={:#06x} extended_PAN={:#018x} sender={:?} LQI={} join_open={}",
-                    network.channel,
-                    network.coord_pan_id.0,
-                    network.zigbee_beacon.extended_pan_id.0,
-                    network.coord_address,
-                    network.link_quality,
-                    network.superframe_spec.association_permit,
-                );
-            }
-        }
-        Err(error) => {
-            println!("Scan failed: {error:?}");
-        }
-    }
+    // println!("Scanning Zigbee channels 11–26...");
+    //
+    // // Scan channels 11-26 (inclusive), listen for duration 5, on each channel.
+    // match mac.scan_network(ScanType::Active, 11..27, 5).await {
+    //     Ok(result) => {
+    //         println!("Received {} network beacons", result.pan_descriptor.len());
+    //
+    //         for network in &result.pan_descriptor {
+    //             println!(
+    //                 "channel={} PAN={:#06x} extended_PAN={:#018x} sender={:?} LQI={} join_open={}",
+    //                 network.channel,
+    //                 network.coord_pan_id.0,
+    //                 network.zigbee_beacon.extended_pan_id.0,
+    //                 network.coord_address,
+    //                 network.link_quality,
+    //                 network.superframe_spec.association_permit,
+    //             );
+    //         }
+    //     }
+    //     Err(error) => {
+    //         println!("Scan failed: {error:?}");
+    //     }
+    // }
 
     // The zigbee library tries tuple handlers from left to right, so the fallback goes last
     let handler = (
@@ -262,9 +263,48 @@ async fn main(_spawner: Spawner) -> ! {
         stack.config().channel(),
     );
 
-    loop {
-        println!("Async runtime is alive");
+    spawner.spawn(
+        stack_task(stack).expect("Could not allocate Zigbee task"),
+    );
 
+    // we suspend main until the device has joined the network (installed its network key).
+    stack.wait_until_joined().await;
+
+    let nib = zigbee::nwk::nib::get_ref();
+    println!(
+        "Network key installed: address={:#06x}, PAN={:#06x}",
+        *nib.network_address(),
+        *nib.panid(),
+    );
+
+    loop {
         Timer::after_secs(1).await;
+
+        // Network-key installation can precede completion of the
+        // Trust Center link-key exchange, so report that separately.
+        println!(
+            "Zigbee commissioning status: {:?}",
+            stack.bdb().commissioning_status(),
+        );
+
+        // Advance Identify's countdown. Later we'll blink an LED here.
+        if IDENTIFY.is_identifying() {
+            println!(
+                "Identifying: {} seconds remaining",
+                IDENTIFY.tick(1),
+            );
+        }
     }
+}
+
+#[embassy_executor::task]
+async fn stack_task(stack: &'static ZigbeeStack) {
+    println!("Starting Zigbee commissioning...");
+
+    // Drive commissioning, incoming frames, persistence, and keepalive.
+    // During normal operation this remains running indefinitely.
+    let outcome = stack.run(AsyncDelay).await;
+
+    // If it returns, print the reason and retain it for diagnosis.
+    println!("Zigbee stack stopped: {outcome:?}");
 }
