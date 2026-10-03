@@ -24,7 +24,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("PANIC: {info}");
     let delay = Delay::new();
     loop {
-        delay.delay_millis(1000);
+        delay.delay_millis(10000);
     }
 }
 

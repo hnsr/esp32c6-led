@@ -38,6 +38,8 @@ use zigbee::zcl::server::{
 use zigbee::zcl::types::{
     AttrInfo, Attribute, AttributeId, Bool, Cluster, ClusterId,
 };
+use core::sync::atomic::AtomicU8;
+use zigbee::zcl::types::Uint8;
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -52,12 +54,13 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 
 const LIGHT_ENDPOINT: u8 = 1;
 
-static INPUT_CLUSTERS: [u16; 5] = [
+static INPUT_CLUSTERS: [u16; 6] = [
     basic::CLUSTER_ID,    // 0x0000: device identity and basic attributes
     identify::CLUSTER_ID, // 0x0003: identify this physical device
     0x0004,               // Groups: membership in groups of lights
     0x0005,               // Scenes: stored combinations of settings
     0x0006,               // On/Off: switching and the current on/off state
+    0x0008,               // Level control (brightness/intensity)
 ];
 
 // Our lamp does not declare client-side clusters at this stage.
@@ -67,7 +70,7 @@ static ENDPOINTS: [EndpointDescriptor<'static>; 1] = [
     EndpointDescriptor {
         endpoint: LIGHT_ENDPOINT,
         profile_id: profile::HOME_AUTOMATION,
-        device_id: 0x0100, // On/Off light
+        device_id: 0x0101, // Dimmable light
         device_version: 1, // Our device revision
         input_clusters: &INPUT_CLUSTERS,
         output_clusters: &OUTPUT_CLUSTERS,
@@ -90,10 +93,13 @@ type ZigbeeFlash = zigbee::storage::FlashStorage<BlockingAsync<FlashStorage<'sta
 
 type Handler = (
     RequestLogger,
-    BasicServer<'static>,
-    &'static IdentifyServer,
-    &'static OnOffServer,
-    UnsupportedClusterResponder<'static>,
+    (
+        BasicServer<'static>,
+        &'static IdentifyServer,
+        &'static OnOffServer,
+        &'static LevelControlServer,
+        UnsupportedClusterResponder<'static>,
+    ),
 );
 
 type ZigbeeStack = zigbee::Stack<'static, EspMlme<'static>, Handler, ZigbeeFlash>;
@@ -232,37 +238,16 @@ async fn main(spawner: Spawner) -> ! {
     );
     println!("Device IEEE address: {:#018x}", mac.ieee_address());
 
-    // println!("Scanning Zigbee channels 11–26...");
-    //
-    // // Scan channels 11-26 (inclusive), listen for duration 5, on each channel.
-    // match mac.scan_network(ScanType::Active, 11..27, 5).await {
-    //     Ok(result) => {
-    //         println!("Received {} network beacons", result.pan_descriptor.len());
-    //
-    //         for network in &result.pan_descriptor {
-    //             println!(
-    //                 "channel={} PAN={:#06x} extended_PAN={:#018x} sender={:?} LQI={} join_open={}",
-    //                 network.channel,
-    //                 network.coord_pan_id.0,
-    //                 network.zigbee_beacon.extended_pan_id.0,
-    //                 network.coord_address,
-    //                 network.link_quality,
-    //                 network.superframe_spec.association_permit,
-    //             );
-    //         }
-    //     }
-    //     Err(error) => {
-    //         println!("Scan failed: {error:?}");
-    //     }
-    // }
-
     // The zigbee library tries tuple handlers from left to right, so the fallback goes last
     let handler = (
         RequestLogger,
-        BASIC,
-        &IDENTIFY,
-        &ON_OFF,
-        UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
+        (
+            BASIC,
+            &IDENTIFY,
+            &ON_OFF,
+            &LEVEL_CONTROL,
+            UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
+        )
     );
 
     // Transfer ownership of the MAC, configuration, handlers, and storage
@@ -280,17 +265,16 @@ async fn main(spawner: Spawner) -> ! {
     );
 
     loop {
-        Timer::after_secs(1).await;
-
         println!(
             "Main task is alive!"
         );
+        Timer::after_secs(10).await;
 
         // Advance Identify's countdown. Later we'll blink an LED here.
         if IDENTIFY.is_identifying() {
             println!(
                 "Identifying: {} seconds remaining",
-                IDENTIFY.tick(1),
+                IDENTIFY.tick(10),
             );
         }
     }
@@ -334,7 +318,8 @@ impl ClusterRequestHandler for RequestLogger {
     }
 }
 
-
+// On/off cluster
+// =================================================================================================
 const ON_OFF_CLUSTER: Cluster =
     Cluster::new(ClusterId(0x0006), "On/Off");
 
@@ -357,6 +342,15 @@ impl OnOffServer {
     }
     fn is_on(&self) -> bool {
         self.on.load(Ordering::Relaxed)
+    }
+
+    fn set_on(&self, on: bool) {
+        self.on.store(on, Ordering::Relaxed);
+
+        println!(
+            "Light state: {}",
+            if on { "ON" } else { "OFF" },
+        );
     }
 }
 
@@ -418,12 +412,7 @@ impl ClusterServer for OnOffServer {
             }
         };
 
-        self.on.store(new_state, Ordering::Relaxed);
-
-        println!(
-            "Light state: {}",
-            if new_state { "ON" } else { "OFF" },
-        );
+        self.set_on(new_state);
 
         // The library decides whether a Default Response is required.
         CommandOutcome::Status(Status::Success)
@@ -441,3 +430,153 @@ impl ClusterRequestHandler for OnOffServer {
 }
 
 static ON_OFF: OnOffServer = OnOffServer::new();
+
+
+// Level control cluster
+// =================================================================================================
+const LEVEL_CONTROL_CLUSTER: Cluster = Cluster::new(ClusterId(0x0008), "Level Control");
+
+const CURRENT_LEVEL: Attribute<Uint8> =
+    LEVEL_CONTROL_CLUSTER.attribute(AttributeId(0x0000), "CurrentLevel", );
+
+const LEVEL_ATTRIBUTES: &[AttrInfo] = &[ CURRENT_LEVEL.attr_info() ];
+
+const MIN_LIGHT_LEVEL: u8 = 1;
+const MAX_LIGHT_LEVEL: u8 = 254;
+
+struct LevelControlServer {
+    level: AtomicU8,
+
+    // Borrow the existing On/Off server so we don't have to duplicate state.
+    on_off: &'static OnOffServer,
+}
+
+impl LevelControlServer {
+    const fn new(on_off: &'static OnOffServer) -> Self {
+        Self {
+            level: AtomicU8::new(MAX_LIGHT_LEVEL),
+            on_off,
+        }
+    }
+
+    fn current_level(&self) -> u8 {
+        self.level.load(Ordering::Relaxed)
+    }
+}
+
+impl ClusterServer for LevelControlServer {
+    fn cluster(&self) -> Cluster {
+        LEVEL_CONTROL_CLUSTER
+    }
+
+    fn attributes(&self) -> &'static [AttrInfo] {
+        LEVEL_ATTRIBUTES
+    }
+
+    fn encode_value(
+        &self,
+        id: AttributeId,
+        out: &mut [u8],
+        offset: &mut usize,
+    ) -> Status {
+        if id != CURRENT_LEVEL.id() {
+            return Status::UnsupportedAttribute;
+        }
+        match CURRENT_LEVEL.encode(
+            Uint8(self.current_level()),
+            out,
+            offset,
+        ) {
+            Ok(()) => Status::Success,
+            Err(_) => Status::InsufficientSpace,
+        }
+    }
+
+    fn command(
+        &self,
+        command: ClusterCommand<'_>,
+        _out: &mut [u8],
+    ) -> CommandOutcome {
+        let with_on_off = command.id.0 == 0x04;
+
+        // Basic payload:
+        //   level: u8
+        //   transition time: little-endian u16, in tenths of a second
+        //
+        // Move To Level may also carry OptionsMask and OptionsOverride.
+        let (requested_level, transition_time, execute_if_off) =
+            match (command.id.0, command.data) {
+                (0x00 | 0x04, [level, lo, hi]) => (
+                    *level,
+                    u16::from_le_bytes([*lo, *hi]),
+                    false,
+                ),
+
+                (0x00, [level, lo, hi, mask, overrides]) => (
+                    *level,
+                    u16::from_le_bytes([*lo, *hi]),
+
+                    // For now our default Options bitmap is zero.
+                    // Bit 0 can be overridden to permit execution while off.
+                    (*mask & *overrides & 0x01) != 0,
+                ),
+
+                // Recognized command, incorrect payload length.
+                (0x00 | 0x04, _) => {
+                    return CommandOutcome::Status(
+                        Status::MalformedCommand,
+                    );
+                }
+
+                // Move, Step, Stop, and their variants not implemented for now.
+                _ => {
+                    return CommandOutcome::Status(
+                        Status::UnsupCommand,
+                    );
+                }
+            };
+
+        // Ordinary "Move To Level" does not switch the lamp on, so we ignore it
+        if !with_on_off && !self.on_off.is_on() && !execute_if_off {
+            println!("Level command ignored: lamp is off");
+            return CommandOutcome::Status(Status::Success);
+        }
+
+        if requested_level == 0xff {
+            return CommandOutcome::Status(Status::InvalidValue);
+        }
+
+        // A target below the lighting minimum is clamped to that minimum.
+        let level = requested_level.max(MIN_LIGHT_LEVEL);
+
+        self.level.store(level, Ordering::Relaxed);
+
+        // The "With On/Off" variant allows switching the light on/off as needed
+        if with_on_off {
+            self.on_off.set_on(level > MIN_LIGHT_LEVEL);
+        }
+
+        println!(
+            "Light level: {}/254, on={}, transition={:#06x} \
+             (target applied immediately)",
+            level,
+            self.on_off.is_on(),
+            transition_time,
+        );
+
+        CommandOutcome::Status(Status::Success)
+    }
+}
+
+impl ClusterRequestHandler for LevelControlServer {
+    fn handle(
+        &self,
+        request: &ClusterRequest<'_>,
+        out: &mut [u8],
+    ) -> Option<ClusterReply> {
+        self.handle_request(request, out)
+    }
+}
+
+static LEVEL_CONTROL: LevelControlServer =
+    LevelControlServer::new(&ON_OFF);
