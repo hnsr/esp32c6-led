@@ -30,6 +30,14 @@ use zigbee::zcl::clusters::general::basic::BasicServer;
 use zigbee::zcl::clusters::general::identify::IdentifyServer;
 use zigbee::zcl::server::UnsupportedClusterResponder;
 use embassy_time::Delay as AsyncDelay;
+use core::sync::atomic::{AtomicBool, Ordering};
+use zigbee::zcl::frame::Status;
+use zigbee::zcl::server::{
+    ClusterCommand, ClusterServer, CommandOutcome,
+};
+use zigbee::zcl::types::{
+    AttrInfo, Attribute, AttributeId, Bool, Cluster, ClusterId,
+};
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -84,6 +92,7 @@ type Handler = (
     RequestLogger,
     BasicServer<'static>,
     &'static IdentifyServer,
+    &'static OnOffServer,
     UnsupportedClusterResponder<'static>,
 );
 
@@ -252,6 +261,7 @@ async fn main(spawner: Spawner) -> ! {
         RequestLogger,
         BASIC,
         &IDENTIFY,
+        &ON_OFF,
         UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
     );
 
@@ -323,3 +333,111 @@ impl ClusterRequestHandler for RequestLogger {
         None
     }
 }
+
+
+const ON_OFF_CLUSTER: Cluster =
+    Cluster::new(ClusterId(0x0006), "On/Off");
+
+const ON_OFF_ATTRIBUTE: Attribute<Bool> =
+    ON_OFF_CLUSTER.attribute(AttributeId(0x0000), "OnOff");
+
+const ON_OFF_ATTRIBUTES: &[AttrInfo] = &[
+    ON_OFF_ATTRIBUTE.attr_info(),
+];
+
+struct OnOffServer {
+    on: AtomicBool,
+}
+
+impl OnOffServer {
+    const fn new() -> Self {
+        Self {
+            on: AtomicBool::new(false),
+        }
+    }
+    fn is_on(&self) -> bool {
+        self.on.load(Ordering::Relaxed)
+    }
+}
+
+impl ClusterServer for OnOffServer {
+    fn cluster(&self) -> Cluster {
+        ON_OFF_CLUSTER
+    }
+
+    fn attributes(&self) -> &'static [AttrInfo] {
+        ON_OFF_ATTRIBUTES
+    }
+
+    fn encode_value(
+        &self,
+        id: AttributeId,
+        out: &mut [u8],
+        offset: &mut usize,
+    ) -> Status {
+        if id != ON_OFF_ATTRIBUTE.id() {
+            return Status::UnsupportedAttribute;
+        }
+
+        // Append the ZCL Boolean type identifier and current value.
+        // The library builds the surrounding Read Attributes response.
+        match ON_OFF_ATTRIBUTE.encode(self.is_on(), out, offset) {
+            Ok(()) => Status::Success,
+            Err(_) => Status::InsufficientSpace,
+        }
+    }
+
+    fn command(
+        &self,
+        command: ClusterCommand<'_>,
+        _out: &mut [u8],
+    ) -> CommandOutcome {
+        let new_state = match (command.id.0, command.data) {
+            (0x00, []) => false,         // Off
+            (0x01, []) => true,          // On
+            (0x02, []) => !self.is_on(), // Toggle
+
+            (0x40, [effect, variant]) => {
+                println!(
+                    "Off With Effect: effect={:#04x}, variant={:#04x}",
+                    effect, variant,
+                );
+
+                // TODO: actually implement the effect
+                false
+            }
+
+            // Recognized command, but incorrect payload length
+            (0x00 | 0x01 | 0x02 | 0x40, _) => {
+                return CommandOutcome::Status(Status::MalformedCommand);
+            }
+
+            // Other On/Off commands are not implemented yet
+            _ => {
+                return CommandOutcome::Status(Status::UnsupCommand);
+            }
+        };
+
+        self.on.store(new_state, Ordering::Relaxed);
+
+        println!(
+            "Light state: {}",
+            if new_state { "ON" } else { "OFF" },
+        );
+
+        // The library decides whether a Default Response is required.
+        CommandOutcome::Status(Status::Success)
+    }
+}
+
+impl ClusterRequestHandler for OnOffServer {
+    fn handle(
+        &self,
+        request: &ClusterRequest<'_>,
+        out: &mut [u8],
+    ) -> Option<ClusterReply> {
+        self.handle_request(request, out)
+    }
+}
+
+static ON_OFF: OnOffServer = OnOffServer::new();

@@ -19,21 +19,23 @@ cargo run --release
 # Flashing previously built binary using sudo:
 espflash flash --monitor --chip esp32c6 target/riscv32imac-unknown-none-elf/release/esp32c6-led
 
-# Monitor output through serial/JTAG
+# Monitor output through serial/JTAG, this wil however reset the ESP32 and/or stop the running firmware
 espflash monitor --chip esp32c6
+
+# To actually attach to the running firmware without resetting it we can use `picocom`:
+picocom --baud 115200 --flow n --lower-rts --raise-dtr --noreset --imap lfcrlf /dev/ttyACM0
 ```
 
 ## TODO
 
-- [ ] Implement Zigbee base_color control
+- [ ] Implement Zigbee light control
+- [ ] Implement button for: rotating effects, reset zigbee association (long press)
 - [ ] Implement a robust, fixed refresh rate rendering loop
 - [ ] Implement more effects, layouts
-- [ ] Implement configuration system (web interface?)
-- [ ] Implement browser-based mock renderer for effect development 
 
 ## LED rendering
 
-(Work in progess)
+(Work in progress)
 
 Driving the LED strip is implemented as a kind of graphics pipeline with two main pieces which
 can have different implementations:
