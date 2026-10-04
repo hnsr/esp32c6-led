@@ -273,12 +273,16 @@ async fn main(spawner: Spawner) -> ! {
     );
 
     loop {
+        let nlme = stack.device().nlme();
         println!(
-            "Main task is alive!"
+            "Main task is running, keepalive={:?}, interval_ms={:?}",
+            nlme.keepalive_method(),
+            nlme.keepalive_interval_ms(),
         );
         Timer::after_secs(10).await;
 
-        // Advance Identify's countdown. Later we'll blink an LED here.
+        // TODO: Actually implement blinking for visual device identification, once we integrate
+        //       into LED diver code
         if IDENTIFY.is_identifying() {
             println!(
                 "Identifying: {} seconds remaining",
@@ -314,10 +318,11 @@ impl ClusterRequestHandler for RequestLogger {
         _out: &mut [u8],
     ) -> Option<ClusterReply> {
         println!(
-            "Application request: profile={:#06x}, cluster={:#06x}, endpoint={}, bytes={:02x?}",
+            "Application request: profile={:#06x}, cluster={:#06x}, endpoint={}, unicast={}, bytes={:02x?}",
             request.profile_id,
             request.cluster_id,
             request.dst_endpoint,
+            request.unicast,
             request.asdu,
         );
 
