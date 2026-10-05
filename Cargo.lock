@@ -2068,8 +2068,7 @@ dependencies = [
 [[package]]
 name = "zigbee"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab4b26322a28be7ee7c17f0a75ee12ba8b9a63c1a0e2c16c38a3e378f09d2edf"
+source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
 dependencies = [
  "embedded-hal-async",
  "log",
@@ -2083,8 +2082,7 @@ dependencies = [
 [[package]]
 name = "zigbee-base-device-behavior"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065b719951c68a2454596107aeff6d37dbc251ca2491cb9c9c983c7ff8ffcf39"
+source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
 dependencies = [
  "embedded-hal-async",
  "log",
@@ -2098,8 +2096,7 @@ dependencies = [
 [[package]]
 name = "zigbee-cluster-library"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fe472b46228bebbb8064095bd200e34ea2a3ee836ec1e7cb313790ec303d627"
+source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
 dependencies = [
  "byte",
  "embedded-hal-async",
@@ -2113,8 +2110,7 @@ dependencies = [
 [[package]]
 name = "zigbee-core"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "531d484d7216da7e3135d41e1191e5368827734c5ae3a072c7d9916c75cbab73"
+source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
 dependencies = [
  "aead 0.5.2",
  "aes",
@@ -2136,8 +2132,7 @@ dependencies = [
 [[package]]
 name = "zigbee-mac"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bdc06f8483ed197064d07e07f2dcdfef91ae229ff790c45c5cddaa756634a73"
+source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
 dependencies = [
  "byte",
  "embassy-futures",
@@ -2158,14 +2153,12 @@ dependencies = [
 [[package]]
 name = "zigbee-macros"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b8aea1cadc274a096f303384130ef7ba390ee8a400d911cb15502933cc3b1f7"
+source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
 
 [[package]]
 name = "zigbee-types"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b4dd5072332d8f1451f07d22ef37ff0a4b24cfe0483666a731ad18614ead1c0"
+source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
 dependencies = [
  "atomic-waker",
  "byte",

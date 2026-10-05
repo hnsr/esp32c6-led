@@ -197,7 +197,10 @@ async fn main(spawner: Spawner) -> ! {
         network_config,
         device_config,
 
-        TimingConfig::default(),
+        TimingConfig {
+            default_keepalive_interval_ms: 10_000,
+            ..TimingConfig::default()
+        },
 
         DeviceDescriptorConfig {
             node: NodeDescriptorConfig {

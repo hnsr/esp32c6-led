@@ -60,3 +60,10 @@ codegen-units = 1     # LLVM can perform better optimizations using a single thr
 debug         = 2     # prefer slower builds but better debugging experience
 lto           = 'fat'
 opt-level     = 's'
+
+
+[patch.crates-io]
+# Load zigbee and related workspace deps from my fork, also explicitly list zigbee-mac, which is a direct dependency
+# in this project, and should probably also come from my fork.
+zigbee = { git = "https://github.com/hnsr/zigbee-rs.git", rev = "99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b" }
+zigbee-mac = { git = "https://github.com/hnsr/zigbee-rs.git", rev = "99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b" }
