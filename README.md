@@ -19,11 +19,14 @@ cargo run --release
 # Flashing previously built binary using sudo:
 espflash flash --monitor --chip esp32c6 target/riscv32imac-unknown-none-elf/release/esp32c6-led
 
-# Monitor output through serial/JTAG, this wil however reset the ESP32 and/or stop the running firmware
-espflash monitor --chip esp32c6
+# To monitor from boot-up, attach using the below command, then hit CTLR+R to reset the ESP
+espflash monitor --chip esp32c6 --port /dev/ttyACM0
 
 # To actually attach to the running firmware without resetting it we can use `picocom`:
 picocom --baud 115200 --flow n --lower-rts --raise-dtr --noreset --imap lfcrlf /dev/ttyACM0
+
+# To erase zigbee storage (i.e. if you need to reset network key/state)
+espflash erase-region --chip esp32c6 0x3f0000 0x4000 # Double check the range with partitions.csv
 ```
 
 ## TODO
