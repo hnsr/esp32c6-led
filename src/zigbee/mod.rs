@@ -1,3 +1,6 @@
+mod clusters;
 mod config;
-pub mod clusters;
-pub mod runtime;
+mod runtime;
+
+// The operation the firmware is allowed to call.
+pub use runtime::start_zigbee;
