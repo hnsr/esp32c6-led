@@ -7,18 +7,15 @@ use esp_println::println;
 use esp_radio::ieee802154::Ieee802154;
 use esp_storage::FlashStorage;
 use static_cell::StaticCell;
-use zigbee::zcl::server::UnsupportedClusterResponder;
 use zigbee_mac::esp::EspMlme;
-use crate::zigbee::clusters::{Handler, RequestLogger, COLOR_CONTROL, ON_OFF, LEVEL_CONTROL};
-use crate::zigbee::clusters::basic::BASIC;
-use crate::zigbee::clusters::identify::IDENTIFY;
-use crate::zigbee::config::{build_stack_config, INPUT_CLUSTERS};
+use crate::zigbee::clusters::{build_handler, Handler, IDENTIFY};
+use crate::zigbee::config::{build_stack_config};
 
 type ZigbeeFlash = zigbee::storage::FlashStorage<BlockingAsync<FlashStorage<'static>>>;
 
 type ZigbeeStack = zigbee::Stack<'static, EspMlme<'static>, Handler, ZigbeeFlash>;
 
-// Reserve static memory for the stack, initialisation is done later
+// Reserve static memory for the stack, initialization is done later
 static STACK: StaticCell<ZigbeeStack> = StaticCell::new();
 
 async fn init_zigbee_storage(flash_peripheral: FLASH<'static>)
@@ -59,22 +56,10 @@ fn init_radio_mac(ieee802154_peripheral: IEEE802154) -> EspMlme {
 
 pub async fn start_zigbee(
     spawner: Spawner,
-    ieee802154_peripheral: IEEE802154<'static>, // fixme: why this lifetime annotation?
+    ieee802154_peripheral: IEEE802154<'static>,
     flash_peripheral: FLASH<'static>
 ) {
-    // The zigbee library tries tuple handlers from left to right, so the fallback goes last
-    let handler = (
-        RequestLogger,
-        BASIC,
-        &IDENTIFY,
-        (
-            &ON_OFF,
-            &LEVEL_CONTROL,
-            &COLOR_CONTROL
-        ),
-        UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
-    );
-
+    let handler = build_handler();
     let mac = init_radio_mac(ieee802154_peripheral);
     let storage = init_zigbee_storage(flash_peripheral).await;
     let stack_config = build_stack_config();

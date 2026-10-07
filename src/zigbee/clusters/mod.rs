@@ -6,13 +6,13 @@ use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
 use crate::zigbee::clusters::color::ColorControlServer;
 use crate::zigbee::clusters::level::LevelControlServer;
 use crate::zigbee::clusters::on_off::OnOffServer;
+use crate::zigbee::config::INPUT_CLUSTERS;
 
-pub mod basic;
-pub mod identify;
 pub mod on_off;
 pub mod level;
 pub mod color;
 
+// The zigbee library tries tuple handlers from left to right, so the fallback goes last
 pub type Handler = (
     RequestLogger,
     BasicServer<'static>,
@@ -24,6 +24,20 @@ pub type Handler = (
     ),
     UnsupportedClusterResponder<'static>,
 );
+
+pub fn build_handler() -> Handler {
+    (
+        RequestLogger,
+        BASIC,
+        &IDENTIFY,
+        (
+            &ON_OFF,
+            &LEVEL_CONTROL,
+            &COLOR_CONTROL
+        ),
+        UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
+    )
+}
 
 pub struct RequestLogger;
 
@@ -47,8 +61,17 @@ impl ClusterRequestHandler for RequestLogger {
     }
 }
 
-// FIXME: also re-export BASIC/IDENTIFY here somehow for consistency?
-//        Or just instantiate them here since they're trivial?
+pub static BASIC: BasicServer<'static> = BasicServer {
+    // fixme: remove hardcoded values
+    zcl_version: 8,
+    application_version: 1,
+    stack_version: 0,
+    hw_version: 1,
+    manufacturer_name: "hnsr",
+    model_identifier: "esp32c6-led-poc",
+    power_source: 0x01,
+};
+pub static IDENTIFY: IdentifyServer = IdentifyServer::new();
 pub static ON_OFF: OnOffServer = OnOffServer::new();
 pub static LEVEL_CONTROL: LevelControlServer = LevelControlServer::new(&ON_OFF);
 pub static COLOR_CONTROL: ColorControlServer = ColorControlServer::new(&ON_OFF);
