@@ -119,7 +119,7 @@ const MIN_COLOR_MIREDS: u16 = 153;
 const MAX_COLOR_MIREDS: u16 = 500;
 
 
-pub struct ColorControlServer {
+pub(in crate::zigbee) struct ColorControlServer {
     x: AtomicU16,
     y: AtomicU16,
     temperature: AtomicU16,
@@ -129,7 +129,7 @@ pub struct ColorControlServer {
 }
 
 impl ColorControlServer {
-    pub const fn new(on_off: &'static OnOffServer) -> Self {
+    pub(super) const fn new(on_off: &'static OnOffServer) -> Self {
         Self {
             x: AtomicU16::new(0x616b),
             y: AtomicU16::new(0x607d),

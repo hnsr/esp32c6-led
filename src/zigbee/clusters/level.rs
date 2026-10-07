@@ -16,7 +16,7 @@ const LEVEL_ATTRIBUTES: &[AttrInfo] = &[ CURRENT_LEVEL.attr_info() ];
 const MIN_LIGHT_LEVEL: u8 = 1;
 const MAX_LIGHT_LEVEL: u8 = 254;
 
-pub struct LevelControlServer {
+pub(in crate::zigbee) struct LevelControlServer {
     level: AtomicU8,
 
     // Borrow the existing On/Off server so we don't have to duplicate state.

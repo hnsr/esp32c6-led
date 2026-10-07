@@ -13,7 +13,7 @@ pub mod level;
 pub mod color;
 
 // The zigbee library tries tuple handlers from left to right, so the fallback goes last
-pub type Handler = (
+pub(super) type Handler = (
     RequestLogger,
     BasicServer<'static>,
     &'static IdentifyServer,
@@ -25,7 +25,7 @@ pub type Handler = (
     UnsupportedClusterResponder<'static>,
 );
 
-pub fn build_handler() -> Handler {
+pub(super) fn build_handler() -> Handler {
     (
         RequestLogger,
         BASIC,
@@ -39,7 +39,7 @@ pub fn build_handler() -> Handler {
     )
 }
 
-pub struct RequestLogger;
+pub(super) struct RequestLogger;
 
 impl ClusterRequestHandler for RequestLogger {
     fn handle(

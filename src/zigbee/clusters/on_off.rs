@@ -15,21 +15,21 @@ const ON_OFF_ATTRIBUTES: &[AttrInfo] = &[
     ON_OFF_ATTRIBUTE.attr_info(),
 ];
 
-pub struct OnOffServer {
+pub(in crate::zigbee) struct OnOffServer {
     on: AtomicBool,
 }
 
 impl OnOffServer {
-    pub const fn new() -> Self {
+    pub(super) const fn new() -> Self {
         Self {
             on: AtomicBool::new(false),
         }
     }
-    pub fn is_on(&self) -> bool {
+    pub(super) fn is_on(&self) -> bool {
         self.on.load(Ordering::Relaxed)
     }
 
-    pub fn set_on(&self, on: bool) {
+    pub(super) fn set_on(&self, on: bool) {
         self.on.store(on, Ordering::Relaxed);
 
         println!(
