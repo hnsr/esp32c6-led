@@ -1,6 +1,6 @@
 use embassy_embedded_hal::adapter::BlockingAsync;
 use embassy_executor::Spawner;
-use embassy_time::Timer;
+use embassy_time::{Duration, Ticker};
 use embassy_time::Delay as AsyncDelay;
 use esp_hal::peripherals::{FLASH, IEEE802154};
 use esp_println::println;
@@ -61,7 +61,7 @@ pub async fn start_zigbee(
     spawner: Spawner,
     ieee802154_peripheral: IEEE802154<'static>, // fixme: why this lifetime annotation?
     flash_peripheral: FLASH<'static>
-) -> ! {
+) {
     // The zigbee library tries tuple handlers from left to right, so the fallback goes last
     let handler = (
         RequestLogger,
@@ -90,23 +90,10 @@ pub async fn start_zigbee(
         stack_task(stack).expect("Could not allocate Zigbee task"),
     );
 
-    loop {
-        let nlme = stack.device().nlme();
-        println!(
-            "Main task is running, keepalive={:?}, interval_ms={:?}",
-            nlme.keepalive_method(),
-            nlme.keepalive_interval_ms(),
-        );
-        Timer::after_secs(10).await;
-
-        // TODO: Actually implement blinking for visual device identification, once we integrate
-        //       into LED diver code
-        if IDENTIFY.is_identifying() {
-            println!("Identifying: {} seconds remaining", IDENTIFY.tick(10), );
-        }
-    }
+    spawner.spawn(
+        maintenance_task(stack).expect("Zigbee maintenance task slot unavailable"),
+    );
 }
-
 
 #[embassy_executor::task]
 async fn stack_task(stack: &'static ZigbeeStack) {
@@ -118,4 +105,33 @@ async fn stack_task(stack: &'static ZigbeeStack) {
 
     // If it returns, print the reason and retain it for diagnosis.
     println!("Zigbee stack stopped: {outcome:?}");
+}
+
+#[embassy_executor::task]
+async fn maintenance_task(stack: &'static ZigbeeStack) {
+    // fixme: what if the zigbee stack stops? should we implement a check here?
+    // Use a ticker for a fixed cadence, instead of just adding a delay
+    let mut ticker = Ticker::every(Duration::from_secs(1));
+    let mut ticks_since_log = 0_u8;
+
+    loop {
+        ticker.next().await;
+
+        IDENTIFY.tick(1);
+
+        ticks_since_log += 1;
+
+        if ticks_since_log == 10 {
+            ticks_since_log = 0;
+
+            let nlme = stack.device().nlme();
+
+            println!(
+                "Zigbee keepalive={:?}, interval_ms={:?}, identify_s={}",
+                nlme.keepalive_method(),
+                nlme.keepalive_interval_ms(),
+                IDENTIFY.identify_time(),
+            );
+        }
+    }
 }
