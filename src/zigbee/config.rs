@@ -1,4 +1,3 @@
-use esp_println::println;
 use zigbee::{CurrentPowerMode, CurrentPowerSourceLevel, DeviceConfig, LogicalType, NetworkConfig, PowerSource, StackConfig, TimingConfig};
 use zigbee::nwk::nib::CapabilityInformation;
 use zigbee::types::IeeeAddress;
@@ -26,38 +25,36 @@ static ENDPOINTS: [EndpointDescriptor<'static>; 1] = [
     EndpointDescriptor {
         endpoint: LIGHT_ENDPOINT,
         profile_id: profile::HOME_AUTOMATION,
-        device_id: 0x010d, // Extended colour light
+        device_id: 0x010d, // Extended color light
         device_version: 1, // Our device revision
         input_clusters: &INPUT_CLUSTERS,
         output_clusters: &OUTPUT_CLUSTERS,
     },
 ];
 
-pub(super) fn build_stack_config() -> StackConfig<'static> {
-    let network_id_text = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/zigbee-network.txt",
-    ));
-    let extended_pan_id = u64::from_str_radix(network_id_text.trim(), 16)
-        .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
+// Initially restrict discovery to the known Hue network's channel.
+const NETWORK_CHANNEL: u8 = 25;
 
+// Used when no keepalive interval was negotiated with the parent.
+const FALLBACK_KEEPALIVE_INTERVAL_MS: u32 = 10_000;
+
+pub(super) fn build_stack_config(network_id: u64) -> StackConfig<'static> {
+    // fixme: replace network_id parameter with automatic network join logic
     let network_config = NetworkConfig {
-        extended_pan_id: IeeeAddress(extended_pan_id),
-        channels: 25..26,
+        extended_pan_id: IeeeAddress(network_id),
+        channels: (NETWORK_CHANNEL..NETWORK_CHANNEL+1),
         scan_duration: 5,
     };
 
     let device_config = DeviceConfig {
         logical_type: LogicalType::EndDevice,
-
-        // The capability byte sent during joining:
-        // bit 2: externally powered / mains-powered
-        // bit 3: receiver remains enabled when idle
-        // bit 7: request an allocated short network address
-        // bit 1 stays clear because we are an end device.
         capability_information: CapabilityInformation(
-            (1 << 2) | (1 << 3) | (1 << 7),
+            // Bit '1' remains clear: this device joins as an end device.
+            (1 << 2) // Mains-powered
+                | (1 << 3) // Receiver enabled while idle
+                | (1 << 7), // Request an allocated short address
         ),
+
 
         // Address-discovery policy: request a device's IEEE address
         // when its short network address is already known
@@ -67,19 +64,12 @@ pub(super) fn build_stack_config() -> StackConfig<'static> {
         tc_link_key_exchange: true,
     };
 
-    println!(
-        "Zigbee configuration: extended_PAN={:#018x}, channel={}, capabilities={:#04x}",
-        network_config.extended_pan_id.0,
-        network_config.channels.start,
-        device_config.capability_information.0,
-    );
-
     let stack_config = StackConfig::new(
         network_config,
         device_config,
 
         TimingConfig {
-            default_keepalive_interval_ms: 10_000,
+            default_keepalive_interval_ms: FALLBACK_KEEPALIVE_INTERVAL_MS,
             ..TimingConfig::default()
         },
 
@@ -110,11 +100,5 @@ pub(super) fn build_stack_config() -> StackConfig<'static> {
             endpoints: &ENDPOINTS,
         },
     );
-
-    println!(
-        "Zigbee descriptors configured: {} application endpoint(s)",
-        stack_config.descriptors().endpoints.len(),
-    );
-
     stack_config
 }
