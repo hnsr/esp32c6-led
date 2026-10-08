@@ -28,10 +28,13 @@ maintainable code.
 
 - Rust 2024, `#![no_std]`, bare-metal target `riscv32imac-unknown-none-elf`.
 - Main firmware binary: `src/bin/main.rs`, binary name `esp32c6-led`.
+- `src/lib.rs` exposes the LED rendering modules and the Zigbee integration in `src/zigbee/`.
+- Zigbee's public entry point is `esp32c6_led::zigbee::start_zigbee`; private modules own
+  configuration, cluster assembly, storage, and Embassy stack/maintenance tasks.
 
 ## Toolchain And Build
 
-- `rust-toolchain.toml` pins stable Rust with `rust-src` and target `riscv32imac-unknown-none-elf`.
+- `rust-toolchain.toml` selects stable Rust with `rust-src` and target `riscv32imac-unknown-none-elf`.
 - `.cargo/config.toml` sets the default target, `build-std = ["core"]`, and force frame pointers.
 - Validate with:
 
@@ -49,8 +52,8 @@ cargo build --release
 - Flash/run uses the configured cargo runner:
 
 ```sh
-cargo run
+cargo run --bin esp32c6-led
 ```
 
-This expands to `espflash flash --monitor --chip esp32c6`;
+The runner invokes `espflash flash --monitor --chip esp32c6 --partition-table partitions.csv`;
 it requires `espflash` installed and a connected board.
