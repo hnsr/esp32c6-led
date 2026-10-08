@@ -10,14 +10,14 @@
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::main;
-use esp_hal::time::Instant;
 use esp_hal::rng::Rng;
+use esp_hal::time::Instant;
 use esp_println::println;
 use esp32c6_led::color::Rgbw;
 use esp32c6_led::driver::Ws2812RmtDriver;
 use esp32c6_led::effect::PulsatingColor;
 use esp32c6_led::layout::Linear;
-use esp32c6_led::render::{render, RenderContext};
+use esp32c6_led::render::{RenderContext, render};
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
@@ -31,8 +31,6 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 // This creates a default app-descriptor required by the esp-idf bootloader.
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
-
-
 
 #[allow(
     clippy::large_stack_frames,
@@ -56,12 +54,17 @@ fn main() -> ! {
     let mut layout = Linear {};
     let mut effect = PulsatingColor {};
     let mut driver = Ws2812RmtDriver::new(peripherals);
-    let mut ctx = RenderContext::new(&rng, 20, Rgbw {
-        red: 1.0,
-        green: 0.0,
-        blue: 0.0,
-        white: 1.0,
-    }, 0.1);
+    let mut ctx = RenderContext::new(
+        &rng,
+        20,
+        Rgbw {
+            red: 1.0,
+            green: 0.0,
+            blue: 0.0,
+            white: 1.0,
+        },
+        0.1,
+    );
 
     println!("Starting rendering loop.");
 

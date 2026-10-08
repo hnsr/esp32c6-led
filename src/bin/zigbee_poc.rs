@@ -1,11 +1,11 @@
 #![no_std]
 #![no_main]
 
-use esp_hal::delay::Delay;
-use esp_println::println;
 use embassy_executor::Spawner;
+use esp_hal::delay::Delay;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
+use esp_println::println;
 use esp32c6_led::zigbee::start_zigbee;
 
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -24,15 +24,11 @@ async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     // Move ownership of these hardware peripherals into their drivers.
-    let software_interrupts =
-        SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    let software_interrupts = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
     let timers = TimerGroup::new(peripherals.TIMG0);
 
     // Give the scheduler a timer and a software interrupt.
-    esp_rtos::start(
-        timers.timer0,
-        software_interrupts.software_interrupt0,
-    );
+    esp_rtos::start(timers.timer0, software_interrupts.software_interrupt0);
 
     // Routes log messages from libraries to the serial output.
     esp_println::logger::init_logger_from_env();

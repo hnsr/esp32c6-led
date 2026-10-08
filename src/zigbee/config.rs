@@ -1,10 +1,15 @@
-use zigbee::{CurrentPowerMode, CurrentPowerSourceLevel, DeviceConfig, LogicalType, NetworkConfig, PowerSource, StackConfig, TimingConfig};
 use zigbee::nwk::nib::CapabilityInformation;
 use zigbee::types::IeeeAddress;
 use zigbee::zcl::clusters::general::{basic, identify};
 use zigbee::zcl::profile;
 use zigbee::zdo::config::DiscoveryType;
-use zigbee::zdo::descriptor::{DeviceDescriptorConfig, EndpointDescriptor, NodeDescriptorConfig, PowerDescriptorConfig};
+use zigbee::zdo::descriptor::{
+    DeviceDescriptorConfig, EndpointDescriptor, NodeDescriptorConfig, PowerDescriptorConfig,
+};
+use zigbee::{
+    CurrentPowerMode, CurrentPowerSourceLevel, DeviceConfig, LogicalType, NetworkConfig,
+    PowerSource, StackConfig, TimingConfig,
+};
 
 const LIGHT_ENDPOINT: u8 = 1;
 
@@ -21,16 +26,14 @@ pub static INPUT_CLUSTERS: [u16; 7] = [
 // Our lamp does not declare client-side clusters at this stage.
 static OUTPUT_CLUSTERS: [u16; 0] = [];
 
-static ENDPOINTS: [EndpointDescriptor<'static>; 1] = [
-    EndpointDescriptor {
-        endpoint: LIGHT_ENDPOINT,
-        profile_id: profile::HOME_AUTOMATION,
-        device_id: 0x010d, // Extended color light
-        device_version: 1, // Our device revision
-        input_clusters: &INPUT_CLUSTERS,
-        output_clusters: &OUTPUT_CLUSTERS,
-    },
-];
+static ENDPOINTS: [EndpointDescriptor<'static>; 1] = [EndpointDescriptor {
+    endpoint: LIGHT_ENDPOINT,
+    profile_id: profile::HOME_AUTOMATION,
+    device_id: 0x010d, // Extended color light
+    device_version: 1, // Our device revision
+    input_clusters: &INPUT_CLUSTERS,
+    output_clusters: &OUTPUT_CLUSTERS,
+}];
 
 // Initially restrict discovery to the known Hue network's channel.
 const NETWORK_CHANNEL: u8 = 25;
@@ -42,7 +45,7 @@ pub(super) fn build_stack_config(network_id: u64) -> StackConfig<'static> {
     // fixme: replace network_id parameter with automatic network join logic
     let network_config = NetworkConfig {
         extended_pan_id: IeeeAddress(network_id),
-        channels: (NETWORK_CHANNEL..NETWORK_CHANNEL+1),
+        channels: (NETWORK_CHANNEL..NETWORK_CHANNEL + 1),
         scan_duration: 5,
     };
 
@@ -55,7 +58,6 @@ pub(super) fn build_stack_config(network_id: u64) -> StackConfig<'static> {
                 | (1 << 7), // Request an allocated short address
         ),
 
-
         // Address-discovery policy: request a device's IEEE address
         // when its short network address is already known
         discovery_type: DiscoveryType::IEEE,
@@ -67,12 +69,10 @@ pub(super) fn build_stack_config(network_id: u64) -> StackConfig<'static> {
     let stack_config = StackConfig::new(
         network_config,
         device_config,
-
         TimingConfig {
             default_keepalive_interval_ms: FALLBACK_KEEPALIVE_INTERVAL_MS,
             ..TimingConfig::default()
         },
-
         DeviceDescriptorConfig {
             node: NodeDescriptorConfig {
                 // Bit 3 of this field identifies the 2.4 GHz band

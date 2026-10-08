@@ -19,7 +19,7 @@ impl Effect for RandomColor {
             red: random_unit(ctx.rng),
             green: random_unit(ctx.rng),
             blue: random_unit(ctx.rng),
-            white: 0.0
+            white: 0.0,
         }
     }
 }

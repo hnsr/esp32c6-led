@@ -1,8 +1,8 @@
-use esp_hal::rng::Rng;
 use crate::color::Rgbw;
-use crate::layout::Layout;
 use crate::driver::Driver;
 use crate::effect::Effect;
+use crate::layout::Layout;
+use esp_hal::rng::Rng;
 
 pub struct RenderContext<'a> {
     pub base_color: Rgbw,
@@ -14,7 +14,6 @@ pub struct RenderContext<'a> {
 
 impl<'a> RenderContext<'a> {
     pub fn new(rng: &'a Rng, led_count: usize, base_color: Rgbw, brightness: f32) -> Self {
-
         Self {
             base_color,
             brightness,

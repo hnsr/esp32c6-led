@@ -1,16 +1,16 @@
+use crate::zigbee::clusters::{Handler, IDENTIFY, build_handler};
+use crate::zigbee::config::build_stack_config;
 use core::ops::Range;
 use embassy_embedded_hal::adapter::BlockingAsync;
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Ticker};
 use embassy_time::Delay as AsyncDelay;
+use embassy_time::{Duration, Ticker};
 use esp_hal::peripherals::{FLASH, IEEE802154};
 use esp_println::println;
 use esp_radio::ieee802154::Ieee802154;
 use esp_storage::FlashStorage;
 use static_cell::StaticCell;
 use zigbee_mac::esp::EspMlme;
-use crate::zigbee::clusters::{build_handler, Handler, IDENTIFY};
-use crate::zigbee::config::{build_stack_config};
 
 // Matches the `zigbee` partition in partitions.csv:
 // offset 0x3f0000, size 0x4000 (16 KiB)
@@ -23,8 +23,7 @@ type ZigbeeStack = zigbee::Stack<'static, EspMlme<'static>, Handler, ZigbeeFlash
 // Reserve static memory for the stack, initialization is done later
 static STACK: StaticCell<ZigbeeStack> = StaticCell::new();
 
-async fn init_zigbee_storage(flash_peripheral: FLASH<'static>) -> ZigbeeFlash
-{
+async fn init_zigbee_storage(flash_peripheral: FLASH<'static>) -> ZigbeeFlash {
     // Init flash storage with flash peripheral
     let flash = FlashStorage::new(flash_peripheral);
 
@@ -37,16 +36,12 @@ async fn init_zigbee_storage(flash_peripheral: FLASH<'static>) -> ZigbeeFlash
 }
 
 fn init_radio_mac(ieee802154_peripheral: IEEE802154<'_>) -> EspMlme<'_> {
-
     // Move ownership of the radio peripheral into its driver.
     let radio = Ieee802154::new(ieee802154_peripheral);
 
     // Move the driver into Zigbee's MAC adapter.
     // Network discovery and joining will configure it further later.
-    let mac = EspMlme::new(
-        radio,
-        esp_radio::ieee802154::Config::default(),
-    );
+    let mac = EspMlme::new(radio, esp_radio::ieee802154::Config::default());
     println!("Device IEEE address: {:#018x}", mac.ieee_address());
 
     mac
@@ -55,13 +50,10 @@ fn init_radio_mac(ieee802154_peripheral: IEEE802154<'_>) -> EspMlme<'_> {
 pub async fn start_zigbee(
     spawner: Spawner,
     ieee802154_peripheral: IEEE802154<'static>,
-    flash_peripheral: FLASH<'static>
+    flash_peripheral: FLASH<'static>,
 ) {
     // fixme: replace fixed network ID with proper reset + join network logic
-    let network_id_text = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/zigbee-network.txt",
-    ));
+    let network_id_text = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/zigbee-network.txt",));
     let extended_pan_id = u64::from_str_radix(network_id_text.trim(), 16)
         .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
 
@@ -82,18 +74,16 @@ pub async fn start_zigbee(
     );
 
     // Transfer ownership of the MAC, configuration, handlers, and storage
-    let stack: &'static ZigbeeStack = STACK.init(
-        zigbee::Stack::new(mac, stack_config, handler, storage),
+    let stack: &'static ZigbeeStack =
+        STACK.init(zigbee::Stack::new(mac, stack_config, handler, storage));
+
+    println!(
+        "Zigbee stack constructed for channel {}",
+        stack.config().channel()
     );
 
-    println!("Zigbee stack constructed for channel {}", stack.config().channel());
-
-    spawner.spawn(
-        stack_task(stack).expect("Zigbee task slot unavailable"),
-    );
-    spawner.spawn(
-        maintenance_task(stack).expect("Zigbee maintenance task slot unavailable"),
-    );
+    spawner.spawn(stack_task(stack).expect("Zigbee task slot unavailable"));
+    spawner.spawn(maintenance_task(stack).expect("Zigbee maintenance task slot unavailable"));
 }
 
 #[embassy_executor::task]

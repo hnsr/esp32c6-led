@@ -5,15 +5,11 @@ use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Bool, Cluster, ClusterId};
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
 
-const ON_OFF_CLUSTER: Cluster =
-    Cluster::new(ClusterId(0x0006), "On/Off");
+const ON_OFF_CLUSTER: Cluster = Cluster::new(ClusterId(0x0006), "On/Off");
 
-const ON_OFF_ATTRIBUTE: Attribute<Bool> =
-    ON_OFF_CLUSTER.attribute(AttributeId(0x0000), "OnOff");
+const ON_OFF_ATTRIBUTE: Attribute<Bool> = ON_OFF_CLUSTER.attribute(AttributeId(0x0000), "OnOff");
 
-const ON_OFF_ATTRIBUTES: &[AttrInfo] = &[
-    ON_OFF_ATTRIBUTE.attr_info(),
-];
+const ON_OFF_ATTRIBUTES: &[AttrInfo] = &[ON_OFF_ATTRIBUTE.attr_info()];
 
 pub(in crate::zigbee) struct OnOffServer {
     on: AtomicBool,
@@ -32,10 +28,7 @@ impl OnOffServer {
     pub(super) fn set_on(&self, on: bool) {
         self.on.store(on, Ordering::Relaxed);
 
-        println!(
-            "Light state: {}",
-            if on { "ON" } else { "OFF" },
-        );
+        println!("Light state: {}", if on { "ON" } else { "OFF" },);
     }
 }
 
@@ -48,12 +41,7 @@ impl ClusterServer for OnOffServer {
         ON_OFF_ATTRIBUTES
     }
 
-    fn encode_value(
-        &self,
-        id: AttributeId,
-        out: &mut [u8],
-        offset: &mut usize,
-    ) -> Status {
+    fn encode_value(&self, id: AttributeId, out: &mut [u8], offset: &mut usize) -> Status {
         if id != ON_OFF_ATTRIBUTE.id() {
             return Status::UnsupportedAttribute;
         }
@@ -66,11 +54,7 @@ impl ClusterServer for OnOffServer {
         }
     }
 
-    fn command(
-        &self,
-        command: ClusterCommand<'_>,
-        _out: &mut [u8],
-    ) -> CommandOutcome {
+    fn command(&self, command: ClusterCommand<'_>, _out: &mut [u8]) -> CommandOutcome {
         let new_state = match (command.id.0, command.data) {
             (0x00, []) => false,         // Off
             (0x01, []) => true,          // On
@@ -105,13 +89,7 @@ impl ClusterServer for OnOffServer {
 }
 
 impl ClusterRequestHandler for OnOffServer {
-    fn handle(
-        &self,
-        request: &ClusterRequest<'_>,
-        out: &mut [u8],
-    ) -> Option<ClusterReply> {
+    fn handle(&self, request: &ClusterRequest<'_>, out: &mut [u8]) -> Option<ClusterReply> {
         self.handle_request(request, out)
     }
 }
-
-

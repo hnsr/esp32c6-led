@@ -2,7 +2,7 @@
 pub struct Coord {
     pub x: f32,
     pub y: f32,
-    pub z: f32
+    pub z: f32,
 }
 
 pub trait Layout {
@@ -16,7 +16,7 @@ impl Layout for Linear {
         Coord {
             x: index as f32,
             y: 0.0,
-            z: 0.0
+            z: 0.0,
         }
     }
 }

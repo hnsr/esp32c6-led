@@ -1,10 +1,10 @@
+use crate::color::Rgbw;
+use crate::math::unit_f32_to_u8;
 use esp_hal::Blocking;
 use esp_hal::gpio::Level;
 use esp_hal::peripherals::Peripherals;
 use esp_hal::rmt::{Channel, PulseCode, Rmt, Tx, TxChannelConfig, TxChannelCreator};
 use esp_hal::time::Rate;
-use crate::color::Rgbw;
-use crate::math::unit_f32_to_u8;
 
 const MAX_LEDS: usize = 100;
 
@@ -20,8 +20,6 @@ pub trait Driver {
     fn teardown(&mut self) {}
 }
 
-
-
 // todo: Move to submodule
 // todo: add driver config (GPIO)
 
@@ -29,7 +27,7 @@ pub struct Ws2812RmtDriver<'a> {
     buffer: [PulseCode; MAX_LEDS * 32 + 1],
     // Needs to be an Option, because we need to move the Channel value out while transmmitting.
     channel: Option<Channel<'a, Blocking, Tx>>,
-    max_index: usize
+    max_index: usize,
 }
 
 const WS2812_ZERO: PulseCode = PulseCode::new(Level::High, 24, Level::Low, 76);
@@ -53,9 +51,8 @@ impl<'a> Ws2812RmtDriver<'a> {
         Self {
             buffer: [PulseCode::end_marker(); MAX_LEDS * 32 + 1],
             channel: Some(channel),
-            max_index: 0
+            max_index: 0,
         }
-
     }
 }
 
@@ -65,7 +62,7 @@ impl Driver for Ws2812RmtDriver<'_> {
 
         assert!(index < MAX_LEDS);
 
-        let slice = &mut self.buffer[index * 32..(index + 1)*32];
+        let slice = &mut self.buffer[index * 32..(index + 1) * 32];
         let pulses = get_pulsecodes_for_color(
             unit_f32_to_u8(color.red),
             unit_f32_to_u8(color.green),
@@ -83,7 +80,11 @@ impl Driver for Ws2812RmtDriver<'_> {
 
         // We have to take() self.channel here so it can be moved into transmit(), after which we moved it back in
         let channel = self.channel.take().unwrap();
-        let channel = channel.transmit(&self.buffer[.. end_marker_index + 1]).unwrap().wait().unwrap();
+        let channel = channel
+            .transmit(&self.buffer[..end_marker_index + 1])
+            .unwrap()
+            .wait()
+            .unwrap();
         self.channel = Some(channel);
 
         self.max_index = 0;
@@ -91,7 +92,8 @@ impl Driver for Ws2812RmtDriver<'_> {
 }
 
 fn get_pulsecodes_for_color(red: u8, green: u8, blue: u8, white: u8) -> [PulseCode; 32] {
-    let color = ((green as u32) << 24) | ((red as u32) << 16) | ((blue as u32) << 8) | (white as u32);
+    let color =
+        ((green as u32) << 24) | ((red as u32) << 16) | ((blue as u32) << 8) | (white as u32);
 
     let mut pulses = [PulseCode::end_marker(); 32];
 
