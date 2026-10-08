@@ -23,21 +23,21 @@ type ZigbeeStack = zigbee::Stack<'static, EspMlme<'static>, Handler, ZigbeeFlash
 // Reserve static memory for the stack, initialization is done later
 static STACK: StaticCell<ZigbeeStack> = StaticCell::new();
 
-async fn init_zigbee_storage(flash_peripheral: FLASH<'static>) -> ZigbeeFlash {
+async fn init_storage(flash: FLASH<'static>) -> ZigbeeFlash {
     // Init flash storage with flash peripheral
-    let flash = FlashStorage::new(flash_peripheral);
+    let storage = FlashStorage::new(flash);
 
     // zigbee-rs expects an async flash interface, so we use the BlockingAsync adapter
     // to provide and async interface
-    let flash = BlockingAsync::new(flash);
+    let flash = BlockingAsync::new(storage);
 
     // Initialize and return Zigbee's in-memory state and restore saved values
     zigbee::storage::init_with_flash(flash, ZIGBEE_FLASH_RANGE).await
 }
 
-fn init_radio_mac(ieee802154_peripheral: IEEE802154<'_>) -> EspMlme<'_> {
+fn init_radio_mac(ieee802154: IEEE802154<'_>) -> EspMlme<'_> {
     // Move ownership of the radio peripheral into its driver.
-    let radio = Ieee802154::new(ieee802154_peripheral);
+    let radio = Ieee802154::new(ieee802154);
 
     // Move the driver into Zigbee's MAC adapter.
     // Network discovery and joining will configure it further later.
@@ -49,8 +49,8 @@ fn init_radio_mac(ieee802154_peripheral: IEEE802154<'_>) -> EspMlme<'_> {
 
 pub async fn start_zigbee(
     spawner: Spawner,
-    ieee802154_peripheral: IEEE802154<'static>,
-    flash_peripheral: FLASH<'static>,
+    ieee802154: IEEE802154<'static>,
+    flash: FLASH<'static>,
 ) {
     // fixme: replace fixed network ID with proper reset + join network logic
     let network_id_text = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/zigbee-network.txt",));
@@ -58,8 +58,8 @@ pub async fn start_zigbee(
         .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
 
     let handler = build_handler();
-    let mac = init_radio_mac(ieee802154_peripheral);
-    let storage = init_zigbee_storage(flash_peripheral).await;
+    let mac = init_radio_mac(ieee802154);
+    let storage = init_storage(flash).await;
     let stack_config = build_stack_config(extended_pan_id);
 
     println!(

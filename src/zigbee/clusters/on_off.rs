@@ -32,6 +32,12 @@ impl OnOffServer {
     }
 }
 
+impl Default for OnOffServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClusterServer for OnOffServer {
     fn cluster(&self) -> Cluster {
         ON_OFF_CLUSTER

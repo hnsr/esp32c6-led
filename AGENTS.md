@@ -28,7 +28,6 @@ maintainable code.
 
 - Rust 2024, `#![no_std]`, bare-metal target `riscv32imac-unknown-none-elf`.
 - Main firmware binary: `src/bin/main.rs`, binary name `esp32c6-led`.
-- `src/lib.rs` is currently only `#![no_std]`.
 
 ## Toolchain And Build
 

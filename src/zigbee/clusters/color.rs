@@ -1,4 +1,4 @@
-use crate::zigbee::clusters::on_off::OnOffServer;
+use super::on_off::OnOffServer;
 use core::sync::atomic::{AtomicU8, AtomicU16, Ordering};
 use esp_println::println;
 use zigbee::zcl::frame::Status;
@@ -101,6 +101,9 @@ const COLOR_ATTRIBUTES: &[AttrInfo] = &[
 
 // Set bits for XY and temperature capabilities
 const SUPPORTED_COLOR_CAPABILITIES: ColorCapabilities = ColorCapabilities((1 << 3) | (1 << 4));
+
+const COMMAND_MOVE_TO_COLOR: u8 = 0x07;
+const COMMAND_MOVE_TO_COLOR_TEMPERATURE: u8 = 0x0a;
 
 // TODO: Choose limits depending on hardware
 const MIN_COLOR_MIREDS: u16 = 153;
@@ -205,9 +208,8 @@ impl ClusterServer for ColorControlServer {
 
     fn command(&self, command: ClusterCommand<'_>, _out: &mut [u8]) -> CommandOutcome {
         let base_len = match command.id.0 {
-            // TODO: Declare consts for the relevant command IDs
-            0x07 => 6, // MoveToColor, payload: x: u16, y: u16, transition: u16
-            0x0a => 4, // MoveToColorTemperature, payload: temperature: u16, transition: u16
+            COMMAND_MOVE_TO_COLOR => 6, // payload: x: u16, y: u16, transition: u16
+            COMMAND_MOVE_TO_COLOR_TEMPERATURE => 4, // payload: temperature: u16, transition: u16
             _ => return CommandOutcome::Status(Status::UnsupCommand),
         };
 
@@ -236,8 +238,7 @@ impl ClusterServer for ColorControlServer {
         }
 
         match command.id.0 {
-            // MoveToColor
-            0x07 => {
+            COMMAND_MOVE_TO_COLOR => {
                 let x = u16::from_le_bytes([body[0], body[1]]);
                 let y = u16::from_le_bytes([body[2], body[3]]);
                 let transition = u16::from_le_bytes([body[4], body[5]]);
@@ -257,8 +258,7 @@ impl ClusterServer for ColorControlServer {
                     x, y, transition,
                 );
             }
-            // MoveToColorTemperature
-            0x0a => {
+            COMMAND_MOVE_TO_COLOR_TEMPERATURE => {
                 let requested = u16::from_le_bytes([body[0], body[1]]);
                 let transition = u16::from_le_bytes([body[2], body[3]]);
 

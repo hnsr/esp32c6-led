@@ -1,4 +1,4 @@
-use crate::zigbee::clusters::on_off::OnOffServer;
+use super::on_off::OnOffServer;
 use core::sync::atomic::{AtomicU8, Ordering};
 use esp_println::println;
 use zigbee::zcl::frame::Status;
