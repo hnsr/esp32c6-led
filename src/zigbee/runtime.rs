@@ -38,7 +38,7 @@ async fn init_zigbee_storage(flash_peripheral: FLASH<'static>)
     storage
 }
 
-fn init_radio_mac(ieee802154_peripheral: IEEE802154) -> EspMlme {
+fn init_radio_mac(ieee802154_peripheral: IEEE802154<'_>) -> EspMlme<'_> {
 
     // Move ownership of the radio peripheral into its driver.
     let radio = Ieee802154::new(ieee802154_peripheral);
