@@ -94,6 +94,8 @@ async fn main(spawner: Spawner) -> ! {
         // Suspend render loop until next tick, allowing zigbee task to run
         ticker.next().await;
 
-        // fixme: detect when rendering can't keep up with ticker
+        // fixme: detect when rendering takes too long, it needs to allow zigbee task to handle
+        //   requests in a reasonable time and before the mac receive queue fills (mac
+        //   frame acknowledgements are handled through interruption)
     }
 }

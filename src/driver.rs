@@ -83,6 +83,7 @@ impl Driver for Ws2812RmtDriver<'_> {
         let channel = channel
             .transmit(&self.buffer[..end_marker_index + 1])
             .unwrap()
+            // fixme: this blocks the cooperative scheduler and delays handling of zigbee requests
             .wait()
             .unwrap();
         self.channel = Some(channel);
