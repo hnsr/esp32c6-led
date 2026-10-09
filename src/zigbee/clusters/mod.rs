@@ -2,7 +2,6 @@ use crate::zigbee::clusters::color::ColorControlServer;
 use crate::zigbee::clusters::level::LevelControlServer;
 use crate::zigbee::clusters::on_off::OnOffServer;
 use crate::zigbee::config::INPUT_CLUSTERS;
-use esp_println::println;
 use zigbee::zcl::clusters::general::basic::BasicServer;
 use zigbee::zcl::clusters::general::identify::IdentifyServer;
 use zigbee::zcl::server::UnsupportedClusterResponder;
@@ -39,7 +38,7 @@ pub(super) struct RequestLogger;
 
 impl ClusterRequestHandler for RequestLogger {
     fn handle(&self, request: &ClusterRequest<'_>, _out: &mut [u8]) -> Option<ClusterReply> {
-        println!(
+        log::info!(
             "Application request: profile={:#06x}, cluster={:#06x}, endpoint={}, unicast={}, bytes={:02x?}",
             request.profile_id,
             request.cluster_id,

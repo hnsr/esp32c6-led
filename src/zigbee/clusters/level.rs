@@ -1,6 +1,5 @@
 use super::on_off::OnOffServer;
 use core::sync::atomic::{AtomicU8, Ordering};
-use esp_println::println;
 use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Cluster, ClusterId, Uint8};
@@ -88,7 +87,7 @@ impl ClusterServer for LevelControlServer {
 
         // Ordinary "Move To Level" does not switch the lamp on, so we ignore it
         if !with_on_off && !self.on_off.is_on() && !execute_if_off {
-            println!("Level command ignored: lamp is off");
+            log::debug!("Level command ignored: lamp is off");
             return CommandOutcome::Status(Status::Success);
         }
 
@@ -106,7 +105,7 @@ impl ClusterServer for LevelControlServer {
             self.on_off.set_on(level > MIN_LIGHT_LEVEL);
         }
 
-        println!(
+        log::debug!(
             "Light level: {}/254, on={}, transition={:#06x} \
              (target applied immediately)",
             level,

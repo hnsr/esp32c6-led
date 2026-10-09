@@ -6,7 +6,6 @@ use embassy_executor::Spawner;
 use embassy_time::Delay as AsyncDelay;
 use embassy_time::{Duration, Ticker};
 use esp_hal::peripherals::{FLASH, IEEE802154};
-use esp_println::println;
 use esp_radio::ieee802154::Ieee802154;
 use esp_storage::FlashStorage;
 use static_cell::StaticCell;
@@ -42,7 +41,7 @@ fn init_radio_mac(ieee802154: IEEE802154<'_>) -> EspMlme<'_> {
     // Move the driver into Zigbee's MAC adapter.
     // Network discovery and joining will configure it further later.
     let mac = EspMlme::new(radio, esp_radio::ieee802154::Config::default());
-    println!("Device IEEE address: {:#018x}", mac.ieee_address());
+    log::info!("Device IEEE address: {:#018x}", mac.ieee_address());
 
     mac
 }
@@ -62,13 +61,11 @@ pub async fn start_zigbee(
     let storage = init_storage(flash).await;
     let stack_config = build_stack_config(extended_pan_id);
 
-    println!(
-        "Zigbee configuration: extended_PAN={:#018x}, channel={}, capabilities={:#04x}",
+    log::info!("Zigbee configuration: extended_PAN={:#018x}, channel={}, capabilities={:#04x}",
         stack_config.network().extended_pan_id.0,
         stack_config.network().channels.start,
-        stack_config.device().capability_information.0,
-    );
-    println!(
+        stack_config.device().capability_information.0,);
+    log::info!(
         "Zigbee descriptors configured: {} application endpoint(s)",
         stack_config.descriptors().endpoints.len(),
     );
@@ -77,7 +74,7 @@ pub async fn start_zigbee(
     let stack: &'static ZigbeeStack =
         STACK.init(zigbee::Stack::new(mac, stack_config, handler, storage));
 
-    println!(
+    log::info!(
         "Zigbee stack constructed for channel {}",
         stack.config().channel()
     );
@@ -88,14 +85,14 @@ pub async fn start_zigbee(
 
 #[embassy_executor::task]
 async fn stack_task(stack: &'static ZigbeeStack) {
-    println!("Starting Zigbee commissioning...");
+    log::info!("Starting Zigbee stack");
 
     // Drive commissioning, incoming frames, persistence, and keepalive.
     // During normal operation this remains running indefinitely.
     let outcome = stack.run(AsyncDelay).await;
 
     // If it returns, print the reason and retain it for diagnosis.
-    println!("Zigbee stack stopped: {outcome:?}");
+    log::error!("Zigbee stack stopped: {outcome:?}");
 }
 
 #[embassy_executor::task]
@@ -118,7 +115,7 @@ async fn maintenance_task(stack: &'static ZigbeeStack) {
 
             let nlme = stack.device().nlme();
 
-            println!(
+            log::debug!(
                 "Zigbee keepalive={:?}, interval_ms={:?}, identify_s={}",
                 nlme.keepalive_method(),
                 nlme.keepalive_interval_ms(),

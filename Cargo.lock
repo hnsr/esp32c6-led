@@ -1033,6 +1033,7 @@ dependencies = [
  "esp-storage",
  "esp32c6",
  "libm",
+ "log",
  "static_cell",
  "zigbee",
  "zigbee-mac",

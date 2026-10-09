@@ -1,5 +1,4 @@
 use core::sync::atomic::{AtomicBool, Ordering};
-use esp_println::println;
 use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Bool, Cluster, ClusterId};
@@ -28,7 +27,7 @@ impl OnOffServer {
     pub(super) fn set_on(&self, on: bool) {
         self.on.store(on, Ordering::Relaxed);
 
-        println!("Light state: {}", if on { "ON" } else { "OFF" },);
+        log::debug!("Light state: {}", if on { "ON" } else { "OFF" },);
     }
 }
 
@@ -67,7 +66,7 @@ impl ClusterServer for OnOffServer {
             (0x02, []) => !self.is_on(), // Toggle
 
             (0x40, [effect, variant]) => {
-                println!(
+                log::debug!(
                     "Off With Effect: effect={:#04x}, variant={:#04x}",
                     effect, variant,
                 );

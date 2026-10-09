@@ -1,6 +1,5 @@
 use super::on_off::OnOffServer;
 use core::sync::atomic::{AtomicU8, AtomicU16, Ordering};
-use esp_println::println;
 use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{
@@ -233,7 +232,7 @@ impl ClusterServer for ColorControlServer {
         let execute_if_off = (effective_options & 0x01) != 0;
 
         if !self.on_off.is_on() && !execute_if_off {
-            println!("Colour command ignored: lamp is off");
+            log::debug!("Colour command ignored: lamp is off");
             return CommandOutcome::Status(Status::Success);
         }
 
@@ -252,7 +251,7 @@ impl ClusterServer for ColorControlServer {
                 self.y.store(y, Ordering::Relaxed);
                 self.mode.store(ColorMode::Xy as u8, Ordering::Relaxed);
 
-                println!(
+                log::debug!(
                     "Colour mode: xy, x={:#06x}, y={:#06x}, \
                  transition={:#06x} (target applied immediately)",
                     x, y, transition,
@@ -272,7 +271,7 @@ impl ClusterServer for ColorControlServer {
                 self.mode
                     .store(ColorMode::Temperature as u8, Ordering::Relaxed);
 
-                println!(
+                log::debug!(
                     "Colour mode: temperature, {} mireds (~{} K), \
                  transition={:#06x} (target applied immediately)",
                     mireds,
