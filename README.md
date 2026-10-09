@@ -1,7 +1,8 @@
 # esp32c6-led
 
 This is a little project to learn rust-based development for an esp32-c6 (super mini)
-board, that I want to use for some DIY LED strip projects.
+board, that I want to use for some DIY LED strip projects and connect to my
+Philips Hue smart home (Zigbee) network.
 
 ## Compiling, flashing, monitoring:
 
