@@ -2,7 +2,7 @@ use crate::color::Rgbw;
 use crate::math::unit_f32_to_u8;
 use esp_hal::Blocking;
 use esp_hal::gpio::Level;
-use esp_hal::peripherals::Peripherals;
+use esp_hal::peripherals::{Peripherals, GPIO8, RMT};
 use esp_hal::rmt::{Channel, PulseCode, Rmt, Tx, TxChannelConfig, TxChannelCreator};
 use esp_hal::time::Rate;
 
@@ -34,10 +34,10 @@ const WS2812_ZERO: PulseCode = PulseCode::new(Level::High, 24, Level::Low, 76);
 const WS2812_ONE: PulseCode = PulseCode::new(Level::High, 48, Level::Low, 52);
 
 impl<'a> Ws2812RmtDriver<'a> {
-    pub fn new(peripherals: Peripherals) -> Self {
+    pub fn new(rmt: RMT<'a>, gpio: GPIO8<'a>) -> Self {
         // The integrated WS2812B-compatible RGB LED is connected to GPIO 8. At an
         // 80 MHz RMT clock, one tick is 12.5 ns; each encoded bit totals 100 ticks.
-        let rmt = Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
+        let rmt = Rmt::new(rmt, Rate::from_mhz(80)).unwrap();
         let tx_config = TxChannelConfig::default()
             .with_clk_divider(1)
             .with_idle_output_level(Level::Low)
@@ -46,7 +46,7 @@ impl<'a> Ws2812RmtDriver<'a> {
             .channel0
             .configure_tx(&tx_config)
             .unwrap()
-            .with_pin(peripherals.GPIO8); // fixme: get from driver config
+            .with_pin(gpio);
 
         Self {
             buffer: [PulseCode::end_marker(); MAX_LEDS * 32 + 1],

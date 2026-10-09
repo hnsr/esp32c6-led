@@ -74,11 +74,6 @@ pub async fn start_zigbee(
     let stack: &'static ZigbeeStack =
         STACK.init(zigbee::Stack::new(mac, stack_config, handler, storage));
 
-    log::info!(
-        "Zigbee stack constructed for channel {}",
-        stack.config().channel()
-    );
-
     spawner.spawn(stack_task(stack).expect("Zigbee task slot unavailable"));
     spawner.spawn(maintenance_task(stack).expect("Zigbee maintenance task slot unavailable"));
 }

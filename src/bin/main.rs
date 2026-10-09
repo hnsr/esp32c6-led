@@ -7,17 +7,21 @@
 )]
 #![deny(clippy::large_stack_frames)]
 
+use embassy_executor::Spawner;
+use embassy_time::{Duration, Ticker};
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
-use esp_hal::main;
+use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::rng::Rng;
 use esp_hal::time::Instant;
+use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
 use esp32c6_led::color::Rgbw;
 use esp32c6_led::driver::Ws2812RmtDriver;
 use esp32c6_led::effect::PulsatingColor;
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
+use esp32c6_led::zigbee::start_zigbee;
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
@@ -36,24 +40,33 @@ esp_bootloader_esp_idf::esp_app_desc!();
     clippy::large_stack_frames,
     reason = "it's not unusual to allocate larger buffers etc. in main"
 )]
-#[main]
-fn main() -> ! {
-    // generator version: 1.3.0
-    // generator parameters: --chip esp32c6
-    // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.1.0/examples
-    println!("Initialising HAL.");
-
+#[esp_rtos::main]
+async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    let delay = Delay::new();
+    // Setup timer and interrupts, and start the scheduler
+    let software_interrupts = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    let timers = TimerGroup::new(peripherals.TIMG0);
+    esp_rtos::start(timers.timer0, software_interrupts.software_interrupt0);
+
+    // Routes log messages from libraries to the serial output.
+    esp_println::logger::init_logger_from_env();
+
+    // Reserve 24 KiB of RAM and register it with the global allocator.
+    esp_alloc::heap_allocator!(size: 24 * 1024);
+
+    start_zigbee(spawner, peripherals.IEEE802154, peripherals.FLASH).await;
+
+    // let delay = Delay::new();
     let rng = Rng::new();
 
-    println!("Instantiating layout, effect and driver.");
+    println!("Instantiating layout, effect and driver");
 
     let mut layout = Linear {};
     let mut effect = PulsatingColor {};
-    let mut driver = Ws2812RmtDriver::new(peripherals);
+    // fixme: make GPIO8 variable depending on LED HW config
+    let mut driver = Ws2812RmtDriver::new(peripherals.RMT, peripherals.GPIO8);
     let mut ctx = RenderContext::new(
         &rng,
         20,
@@ -66,14 +79,21 @@ fn main() -> ! {
         0.1,
     );
 
-    println!("Starting rendering loop.");
+    println!("Starting rendering loop");
+
+    // Set up a ticker for 40 hz
+    let mut ticker = Ticker::every(Duration::from_millis(25));
 
     loop {
         // fixme: using f32 might not be stable for long uptimes
-        ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1000000.0;
+        ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1_000_000.0;
 
+        // fixme: render might block for a while, will this interfere with radio?
         render(&mut ctx, &mut layout, &mut effect, &mut driver);
 
-        delay.delay_millis(25);
+        // Suspend render loop until next tick, allowing zigbee task to run
+        ticker.next().await;
+
+        // fixme: detect when rendering can't keep up with ticker
     }
 }
