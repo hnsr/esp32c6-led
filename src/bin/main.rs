@@ -17,7 +17,6 @@ use esp_hal::time::Instant;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
 use static_cell::StaticCell;
-use esp32c6_led::color::Rgbw;
 use esp32c6_led::driver::Ws2812RmtDriver;
 use esp32c6_led::effect::PulsatingColor;
 use esp32c6_led::lamp::{LampState, SharedLamp};
@@ -65,7 +64,6 @@ async fn main(spawner: Spawner) -> ! {
 
     start_zigbee(spawner, peripherals.IEEE802154, peripherals.FLASH, lamp).await;
 
-    // let delay = Delay::new();
     let rng = Rng::new();
 
     println!("Instantiating layout, effect and driver");
@@ -74,17 +72,7 @@ async fn main(spawner: Spawner) -> ! {
     let mut effect = PulsatingColor {};
     // fixme: make GPIO8 variable depending on LED HW config
     let mut driver = Ws2812RmtDriver::new(peripherals.RMT, peripherals.GPIO8);
-    let mut ctx = RenderContext::new(
-        &rng,
-        20,
-        Rgbw {
-            red: 1.0,
-            green: 0.0,
-            blue: 0.0,
-            white: 1.0,
-        },
-        0.1,
-    );
+    let mut ctx = RenderContext::new(&rng, 20);
 
     println!("Starting rendering loop");
 
@@ -95,8 +83,7 @@ async fn main(spawner: Spawner) -> ! {
         // fixme: using f32 might not be stable for long uptimes
         ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1_000_000.0;
 
-        // fixme: render might block for a while, will this interfere with radio?
-        render(&mut ctx, &mut layout, &mut effect, &mut driver);
+        render(&mut ctx, &mut layout, &mut effect, &mut driver, lamp);
 
         // Suspend render loop until next tick, allowing zigbee task to run
         ticker.next().await;

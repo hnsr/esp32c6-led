@@ -237,7 +237,7 @@ impl ClusterServer for ColorControlServer {
                 let y = u16::from_le_bytes([body[2], body[3]]);
                 let transition = u16::from_le_bytes([body[4], body[5]]);
 
-                // Ensure valid range, mappping to LED supported ranges wil be done later.
+                // Ensure valid range, mapping to LED supported ranges wil be done later.
                 if x > 0xfeff || y > 0xfeff {
                     return CommandOutcome::Status(Status::InvalidValue);
                 }
