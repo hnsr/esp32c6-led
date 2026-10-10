@@ -6,6 +6,7 @@ use zigbee::zcl::clusters::general::basic::BasicServer;
 use zigbee::zcl::clusters::general::identify::IdentifyServer;
 use zigbee::zcl::server::UnsupportedClusterResponder;
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
+use crate::lamp::SharedLamp;
 
 pub mod color;
 pub mod level;
@@ -17,19 +18,22 @@ pub(super) type Handler = (
     BasicServer<'static>,
     &'static IdentifyServer,
     (
-        &'static OnOffServer,
-        &'static LevelControlServer,
-        &'static ColorControlServer,
+        OnOffServer,
+        LevelControlServer,
+        ColorControlServer,
     ),
     UnsupportedClusterResponder<'static>,
 );
 
-pub(super) fn build_handler() -> Handler {
+pub(super) fn build_handler(lamp: &'static SharedLamp) -> Handler {
+    let on_off_server = OnOffServer::new(lamp);
+    let level_server = LevelControlServer::new(lamp);
+    let color_server = ColorControlServer::new(lamp);
     (
         RequestLogger,
         BASIC,
         &IDENTIFY,
-        (&ON_OFF, &LEVEL_CONTROL, &COLOR_CONTROL),
+        (on_off_server, level_server, color_server),
         UnsupportedClusterResponder::new(&INPUT_CLUSTERS),
     )
 }
@@ -52,6 +56,7 @@ impl ClusterRequestHandler for RequestLogger {
     }
 }
 
+// fixme: can we just instantiate these from build_handler as well?
 pub static BASIC: BasicServer<'static> = BasicServer {
     // fixme: remove hardcoded values
     zcl_version: 8,
@@ -63,6 +68,4 @@ pub static BASIC: BasicServer<'static> = BasicServer {
     power_source: 0x01,
 };
 pub static IDENTIFY: IdentifyServer = IdentifyServer::new();
-pub static ON_OFF: OnOffServer = OnOffServer::new();
-pub static LEVEL_CONTROL: LevelControlServer = LevelControlServer::new(&ON_OFF);
-pub static COLOR_CONTROL: ColorControlServer = ColorControlServer::new(&ON_OFF);
+

@@ -1,9 +1,8 @@
-use super::on_off::OnOffServer;
-use core::sync::atomic::{AtomicU8, Ordering};
 use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Cluster, ClusterId, Uint8};
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
+use crate::lamp::SharedLamp;
 
 const LEVEL_CONTROL_CLUSTER: Cluster = Cluster::new(ClusterId(0x0008), "Level Control");
 
@@ -12,26 +11,23 @@ const CURRENT_LEVEL: Attribute<Uint8> =
 
 const LEVEL_ATTRIBUTES: &[AttrInfo] = &[CURRENT_LEVEL.attr_info()];
 
+// fixme: should be defined on lamp state
 const MIN_LIGHT_LEVEL: u8 = 1;
 const MAX_LIGHT_LEVEL: u8 = 254;
 
 pub(in crate::zigbee) struct LevelControlServer {
-    level: AtomicU8,
-
-    // Borrow the existing On/Off server so we don't have to duplicate state.
-    on_off: &'static OnOffServer,
+    lamp: &'static SharedLamp
 }
 
 impl LevelControlServer {
-    pub const fn new(on_off: &'static OnOffServer) -> Self {
+    pub const fn new(lamp: &'static SharedLamp) -> Self {
         Self {
-            level: AtomicU8::new(MAX_LIGHT_LEVEL),
-            on_off,
+            lamp
         }
     }
 
     fn current_level(&self) -> u8 {
-        self.level.load(Ordering::Relaxed)
+        self.lamp.get().brightness
     }
 }
 
@@ -85,8 +81,10 @@ impl ClusterServer for LevelControlServer {
             }
         };
 
+        let mut lamp = self.lamp.get();
+
         // Ordinary "Move To Level" does not switch the lamp on, so we ignore it
-        if !with_on_off && !self.on_off.is_on() && !execute_if_off {
+        if !with_on_off && !lamp.on && !execute_if_off {
             log::debug!("Level command ignored: lamp is off");
             return CommandOutcome::Status(Status::Success);
         }
@@ -95,21 +93,22 @@ impl ClusterServer for LevelControlServer {
             return CommandOutcome::Status(Status::InvalidValue);
         }
 
-        // A target below the lighting minimum is clamped to that minimum.
-        let level = requested_level.max(MIN_LIGHT_LEVEL);
+        // Clamp requested level to lamp limits
+        let level = requested_level.clamp(MIN_LIGHT_LEVEL, MAX_LIGHT_LEVEL);
 
-        self.level.store(level, Ordering::Relaxed);
+        lamp.brightness = level;
 
         // The "With On/Off" variant allows switching the light on/off as needed
         if with_on_off {
-            self.on_off.set_on(level > MIN_LIGHT_LEVEL);
+            lamp.on = level > MIN_LIGHT_LEVEL;
         }
+        self.lamp.set(lamp);
 
         log::debug!(
             "Light level: {}/254, on={}, transition={:#06x} \
              (target applied immediately)",
             level,
-            self.on_off.is_on(),
+            lamp.on,
             transition_time,
         );
 

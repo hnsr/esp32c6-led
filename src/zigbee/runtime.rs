@@ -10,6 +10,7 @@ use esp_radio::ieee802154::Ieee802154;
 use esp_storage::FlashStorage;
 use static_cell::StaticCell;
 use zigbee_mac::esp::EspMlme;
+use crate::lamp::SharedLamp;
 
 // Matches the `zigbee` partition in partitions.csv:
 // offset 0x3f0000, size 0x4000 (16 KiB)
@@ -50,13 +51,14 @@ pub async fn start_zigbee(
     spawner: Spawner,
     ieee802154: IEEE802154<'static>,
     flash: FLASH<'static>,
+    lamp: &'static SharedLamp,
 ) {
     // fixme: replace fixed network ID with proper reset + join network logic
     let network_id_text = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/zigbee-network.txt",));
     let extended_pan_id = u64::from_str_radix(network_id_text.trim(), 16)
         .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
 
-    let handler = build_handler();
+    let handler = build_handler(lamp);
     let mac = init_radio_mac(ieee802154);
     let storage = init_storage(flash).await;
     let stack_config = build_stack_config(extended_pan_id);

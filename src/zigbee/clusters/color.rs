@@ -1,5 +1,4 @@
-use super::on_off::OnOffServer;
-use core::sync::atomic::{AtomicU8, AtomicU16, Ordering};
+use core::sync::atomic::{AtomicU8, Ordering};
 use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{
@@ -7,6 +6,8 @@ use zigbee::zcl::types::{
     TypeId, Uint16, ZclBitmap8, ZclBitmap16, ZclEnum8,
 };
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
+use crate::lamp::SharedLamp;
+use crate::lamp::ColorMode as LampColorMode;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
@@ -104,36 +105,28 @@ const SUPPORTED_COLOR_CAPABILITIES: ColorCapabilities = ColorCapabilities((1 << 
 const COMMAND_MOVE_TO_COLOR: u8 = 0x07;
 const COMMAND_MOVE_TO_COLOR_TEMPERATURE: u8 = 0x0a;
 
-// TODO: Choose limits depending on hardware
+// TODO: get limits from lamp (which should match hardware)
 const MIN_COLOR_MIREDS: u16 = 153;
 const MAX_COLOR_MIREDS: u16 = 500;
 
 pub(in crate::zigbee) struct ColorControlServer {
-    x: AtomicU16,
-    y: AtomicU16,
-    temperature: AtomicU16,
-    mode: AtomicU8,
-    options: AtomicU8,
-    on_off: &'static OnOffServer,
+    lamp: &'static SharedLamp,
+    options: AtomicU8, // fixme: move to lamp state as well?
 }
 
 impl ColorControlServer {
-    pub(super) const fn new(on_off: &'static OnOffServer) -> Self {
+    pub(super) const fn new(lamp: &'static SharedLamp) -> Self {
         Self {
-            x: AtomicU16::new(0x616b),
-            y: AtomicU16::new(0x607d),
-
-            // 250 mireds = 4000K
-            temperature: AtomicU16::new(250),
-            mode: AtomicU8::new(ColorMode::Xy as u8),
-
+            lamp,
             options: AtomicU8::new(0),
-            on_off,
         }
     }
 
     fn color_mode(&self) -> ColorMode {
-        ColorMode::from_raw(self.mode.load(Ordering::Relaxed)).expect("Invalid stored colour mode")
+        match self.lamp.get().color_mode {
+            LampColorMode::Xy => ColorMode::Xy,
+            LampColorMode::Temperature => ColorMode::Temperature
+        }
     }
 }
 
@@ -147,19 +140,18 @@ impl ClusterServer for ColorControlServer {
     }
 
     fn encode_value(&self, id: AttributeId, out: &mut [u8], offset: &mut usize) -> Status {
+        let lamp = self.lamp.get();
+
         let result = match id.0 {
             // Targets apply immediately, so no transition remains and we always return 0
             0x0002 => COLOR_REMAINING_TIME.encode(Uint16(0), out, offset),
 
-            0x0003 => COLOR_X.encode(Uint16(self.x.load(Ordering::Relaxed)), out, offset),
-            0x0004 => COLOR_Y.encode(Uint16(self.y.load(Ordering::Relaxed)), out, offset),
-            0x0007 => COLOR_TEMPERATURE.encode(
-                Uint16(self.temperature.load(Ordering::Relaxed)),
-                out,
-                offset,
-            ),
+            0x0003 => COLOR_X.encode(Uint16(lamp.x), out, offset),
+            0x0004 => COLOR_Y.encode(Uint16(lamp.y), out, offset),
+            0x0007 => COLOR_TEMPERATURE.encode(Uint16(lamp.temperature), out, offset),
             0x0008 => COLOR_MODE.encode(self.color_mode(), out, offset),
             0x000f => COLOR_OPTIONS.encode(
+                // fixme: move options to lamp state?
                 ColorOptions(self.options.load(Ordering::Relaxed)),
                 out,
                 offset,
@@ -201,6 +193,7 @@ impl ClusterServer for ColorControlServer {
             return Status::MalformedCommand;
         };
 
+        // fixme: move options to lamp state?
         self.options.store(options.0, Ordering::Relaxed);
         Status::Success
     }
@@ -225,13 +218,15 @@ impl ClusterServer for ColorControlServer {
             }
         };
 
+        let mut lamp = self.lamp.get();
+
         // Load default options, apply per-command overrides
         let defaults = self.options.load(Ordering::Relaxed);
         let effective_options = (defaults & !mask) | (overrides & mask);
 
         let execute_if_off = (effective_options & 0x01) != 0;
 
-        if !self.on_off.is_on() && !execute_if_off {
+        if !lamp.on && !execute_if_off {
             log::debug!("Colour command ignored: lamp is off");
             return CommandOutcome::Status(Status::Success);
         }
@@ -247,9 +242,10 @@ impl ClusterServer for ColorControlServer {
                     return CommandOutcome::Status(Status::InvalidValue);
                 }
 
-                self.x.store(x, Ordering::Relaxed);
-                self.y.store(y, Ordering::Relaxed);
-                self.mode.store(ColorMode::Xy as u8, Ordering::Relaxed);
+                lamp.x = x;
+                lamp.y = y;
+                lamp.color_mode = LampColorMode::Xy;
+                self.lamp.set(lamp);
 
                 log::debug!(
                     "Colour mode: xy, x={:#06x}, y={:#06x}, \
@@ -267,9 +263,9 @@ impl ClusterServer for ColorControlServer {
 
                 let mireds = requested.clamp(MIN_COLOR_MIREDS, MAX_COLOR_MIREDS);
 
-                self.temperature.store(mireds, Ordering::Relaxed);
-                self.mode
-                    .store(ColorMode::Temperature as u8, Ordering::Relaxed);
+                lamp.temperature = mireds;
+                lamp.color_mode = LampColorMode::Temperature;
+                self.lamp.set(lamp);
 
                 log::debug!(
                     "Colour mode: temperature, {} mireds (~{} K), \

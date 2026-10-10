@@ -1,8 +1,8 @@
-use core::sync::atomic::{AtomicBool, Ordering};
 use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Bool, Cluster, ClusterId};
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
+use crate::lamp::SharedLamp;
 
 const ON_OFF_CLUSTER: Cluster = Cluster::new(ClusterId(0x0006), "On/Off");
 
@@ -11,29 +11,25 @@ const ON_OFF_ATTRIBUTE: Attribute<Bool> = ON_OFF_CLUSTER.attribute(AttributeId(0
 const ON_OFF_ATTRIBUTES: &[AttrInfo] = &[ON_OFF_ATTRIBUTE.attr_info()];
 
 pub(in crate::zigbee) struct OnOffServer {
-    on: AtomicBool,
+    lamp: &'static SharedLamp
 }
 
 impl OnOffServer {
-    pub(super) const fn new() -> Self {
+    pub(super) const fn new(lamp: &'static SharedLamp) -> Self {
         Self {
-            on: AtomicBool::new(false),
+            lamp
         }
     }
     pub(super) fn is_on(&self) -> bool {
-        self.on.load(Ordering::Relaxed)
+        self.lamp.get().on
     }
 
     pub(super) fn set_on(&self, on: bool) {
-        self.on.store(on, Ordering::Relaxed);
+        let mut lamp = self.lamp.get();
+        lamp.on = on;
+        self.lamp.set(lamp);
 
         log::debug!("Light state: {}", if on { "ON" } else { "OFF" },);
-    }
-}
-
-impl Default for OnOffServer {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

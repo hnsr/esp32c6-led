@@ -16,9 +16,11 @@ use esp_hal::rng::Rng;
 use esp_hal::time::Instant;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
+use static_cell::StaticCell;
 use esp32c6_led::color::Rgbw;
 use esp32c6_led::driver::Ws2812RmtDriver;
 use esp32c6_led::effect::PulsatingColor;
+use esp32c6_led::lamp::{LampState, SharedLamp};
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
 use esp32c6_led::zigbee::start_zigbee;
@@ -36,12 +38,17 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
 
+// Our shared (between renderer and zigbee) lamp state
+static LAMP: StaticCell<SharedLamp> = StaticCell::new();
+
 #[allow(
     clippy::large_stack_frames,
     reason = "it's not unusual to allocate larger buffers etc. in main"
 )]
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
+    let lamp: &SharedLamp = LAMP.init(SharedLamp::new(LampState::default()));
+
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
@@ -56,7 +63,7 @@ async fn main(spawner: Spawner) -> ! {
     // Reserve 24 KiB of RAM and register it with the global allocator.
     esp_alloc::heap_allocator!(size: 24 * 1024);
 
-    start_zigbee(spawner, peripherals.IEEE802154, peripherals.FLASH).await;
+    start_zigbee(spawner, peripherals.IEEE802154, peripherals.FLASH, lamp).await;
 
     // let delay = Delay::new();
     let rng = Rng::new();
