@@ -23,6 +23,7 @@ use esp32c6_led::lamp::{LampState, SharedLamp};
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
 use esp32c6_led::zigbee::start_zigbee;
+use esp32c6_led::timing::LoopTimings;
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
@@ -72,18 +73,28 @@ async fn main(spawner: Spawner) -> ! {
     let mut effect = PulsatingColor {};
     // fixme: make GPIO8 variable depending on LED HW config
     let mut driver = Ws2812RmtDriver::new(peripherals.RMT, peripherals.GPIO8);
-    let mut ctx = RenderContext::new(&rng, 20);
+    let mut ctx = RenderContext::new(&rng, 10);
 
     println!("Starting rendering loop");
 
     // Set up a ticker for 40 hz
     let mut ticker = Ticker::every(Duration::from_millis(25));
 
+    // let mut timing = LoopTimings::<400>::new("renderer");
+
     loop {
+
+        // timing.begin();
+
         // fixme: using f32 might not be stable for long uptimes
         ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1_000_000.0;
 
         render(&mut ctx, &mut layout, &mut effect, &mut driver, lamp);
+
+        // timing.end_work();
+        // if timing.report_if_ready() {
+        //     ticker.reset();
+        // }
 
         // Suspend render loop until next tick, allowing zigbee task to run
         ticker.next().await;

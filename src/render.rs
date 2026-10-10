@@ -66,7 +66,6 @@ pub fn render(
         ctx.brightness = 0.0;
     }
 
-
     for index in 0..ctx.led_count {
         let coord = layout.get_coord(index);
         let mut color = effect.get_color(ctx, index, coord);
