@@ -218,7 +218,7 @@ impl ClusterServer for ColorControlServer {
             }
         };
 
-        let mut lamp = self.lamp.get();
+        let lamp = self.lamp.get();
 
         // Load default options, apply per-command overrides
         let defaults = self.options.load(Ordering::Relaxed);
@@ -242,10 +242,12 @@ impl ClusterServer for ColorControlServer {
                     return CommandOutcome::Status(Status::InvalidValue);
                 }
 
-                lamp.x = x;
-                lamp.y = y;
-                lamp.color_mode = LampColorMode::Xy;
-                self.lamp.set(lamp);
+                self.lamp.update(|mut state| {
+                    state.x = x;
+                    state.y = y;
+                    state.color_mode = LampColorMode::Xy;
+                    state
+                });
 
                 log::debug!(
                     "Colour mode: xy, x={:#06x}, y={:#06x}, \
@@ -263,9 +265,11 @@ impl ClusterServer for ColorControlServer {
 
                 let mireds = requested.clamp(MIN_COLOR_MIREDS, MAX_COLOR_MIREDS);
 
-                lamp.temperature = mireds;
-                lamp.color_mode = LampColorMode::Temperature;
-                self.lamp.set(lamp);
+                self.lamp.update(|mut state| {
+                    state.temperature = mireds;
+                    state.color_mode = LampColorMode::Temperature;
+                    state
+                });
 
                 log::debug!(
                     "Colour mode: temperature, {} mireds (~{} K), \
