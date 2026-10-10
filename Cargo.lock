@@ -2069,7 +2069,7 @@ dependencies = [
 [[package]]
 name = "zigbee"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
 dependencies = [
  "embedded-hal-async",
  "log",
@@ -2083,7 +2083,7 @@ dependencies = [
 [[package]]
 name = "zigbee-base-device-behavior"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
 dependencies = [
  "embedded-hal-async",
  "log",
@@ -2097,7 +2097,7 @@ dependencies = [
 [[package]]
 name = "zigbee-cluster-library"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
 dependencies = [
  "byte",
  "embedded-hal-async",
@@ -2111,7 +2111,7 @@ dependencies = [
 [[package]]
 name = "zigbee-core"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
 dependencies = [
  "aead 0.5.2",
  "aes",
@@ -2133,7 +2133,7 @@ dependencies = [
 [[package]]
 name = "zigbee-mac"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
 dependencies = [
  "byte",
  "embassy-futures",
@@ -2154,12 +2154,12 @@ dependencies = [
 [[package]]
 name = "zigbee-macros"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
 
 [[package]]
 name = "zigbee-types"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?rev=99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b#99d3387299dd4b5ac6685d6c1cb38d846a1d6b3b"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
 dependencies = [
  "atomic-waker",
  "byte",
