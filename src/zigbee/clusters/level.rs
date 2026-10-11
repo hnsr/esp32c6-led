@@ -2,7 +2,7 @@ use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Cluster, ClusterId, Uint8};
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::lamp::SharedLamp;
+use crate::zigbee::lamp_state::SharedLampState;
 
 const LEVEL_CONTROL_CLUSTER: Cluster = Cluster::new(ClusterId(0x0008), "Level Control");
 
@@ -16,11 +16,11 @@ const MIN_LIGHT_LEVEL: u8 = 1;
 const MAX_LIGHT_LEVEL: u8 = 254;
 
 pub(in crate::zigbee) struct LevelControlServer {
-    lamp: &'static SharedLamp
+    lamp: &'static SharedLampState
 }
 
 impl LevelControlServer {
-    pub const fn new(lamp: &'static SharedLamp) -> Self {
+    pub const fn new(lamp: &'static SharedLampState) -> Self {
         Self {
             lamp
         }

@@ -2,7 +2,7 @@ use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Bool, Cluster, ClusterId};
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::lamp::SharedLamp;
+use crate::zigbee::lamp_state::SharedLampState;
 
 const ON_OFF_CLUSTER: Cluster = Cluster::new(ClusterId(0x0006), "On/Off");
 
@@ -11,11 +11,11 @@ const ON_OFF_ATTRIBUTE: Attribute<Bool> = ON_OFF_CLUSTER.attribute(AttributeId(0
 const ON_OFF_ATTRIBUTES: &[AttrInfo] = &[ON_OFF_ATTRIBUTE.attr_info()];
 
 pub(in crate::zigbee) struct OnOffServer {
-    lamp: &'static SharedLamp
+    lamp: &'static SharedLampState
 }
 
 impl OnOffServer {
-    pub(super) const fn new(lamp: &'static SharedLamp) -> Self {
+    pub(super) const fn new(lamp: &'static SharedLampState) -> Self {
         Self {
             lamp
         }

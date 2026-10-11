@@ -6,8 +6,8 @@ use zigbee::zcl::types::{
     TypeId, Uint16, ZclBitmap8, ZclBitmap16, ZclEnum8,
 };
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::lamp::SharedLamp;
-use crate::lamp::ColorMode as LampColorMode;
+use crate::zigbee::lamp_state::ColorMode as LampColorMode;
+use crate::zigbee::lamp_state::SharedLampState;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
@@ -110,12 +110,12 @@ const MIN_COLOR_MIREDS: u16 = 153;
 const MAX_COLOR_MIREDS: u16 = 500;
 
 pub(in crate::zigbee) struct ColorControlServer {
-    lamp: &'static SharedLamp,
+    lamp: &'static SharedLampState,
     options: AtomicU8, // fixme: move to lamp state as well?
 }
 
 impl ColorControlServer {
-    pub(super) const fn new(lamp: &'static SharedLamp) -> Self {
+    pub(super) const fn new(lamp: &'static SharedLampState) -> Self {
         Self {
             lamp,
             options: AtomicU8::new(0),

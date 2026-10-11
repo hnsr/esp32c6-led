@@ -1,10 +1,10 @@
 use core::cell::Cell;
 
-// X/Y values for sRGB white, which we want to use as the default
+// Approximate X/Y values for (s)RGB white, which we want to use as the default
 const XY_SRGB_WHITE_X: u16 = 0x500D;
 const XY_SRGB_WHITE_Y: u16 = 0x5439;
 
-// Temperature (in mireds) for warm white (2700K)
+// Temperature (in mireds) for warm white (2700K), to use as a default
 const TEMPERATURE_MIREDS_WARM: u16 = 370;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -13,22 +13,37 @@ pub enum ColorMode {
     Temperature
 }
 
-// The lamp state matches the Zigbee capabilities and representation (XY, temperature in mireds),
-// but not encoding which stays in the Zigbee cluster implementation
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LampState {
     pub on: bool,
-
-    pub brightness: u8,
-
     pub color_mode: ColorMode,
 
+    pub(super) brightness: u8,
+
     // Color in XY
-    pub x: u16,
-    pub y: u16,
+    pub(super) x: u16,
+    pub(super) y: u16,
 
     // Temperature in mireds
-    pub temperature: u16
+    pub(super) temperature: u16
+}
+
+impl LampState {
+    pub fn get_brightness(&self) -> f32 {
+        f32::from(self.brightness) / 254.0
+    }
+
+    pub fn get_x(&self) -> f32 {
+        f32::from(self.x) / 65_536.0
+    }
+
+    pub fn get_y(&self) -> f32 {
+        f32::from(self.y) / 65_536.0
+    }
+
+    pub fn get_temperature(&self) -> f32 {
+        f32::from(self.temperature)
+    }
 }
 
 impl Default for LampState {
@@ -44,4 +59,4 @@ impl Default for LampState {
     }
 }
 
-pub type SharedLamp = Cell<LampState>;
+pub type SharedLampState = Cell<LampState>;

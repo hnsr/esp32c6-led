@@ -16,14 +16,11 @@ use esp_hal::rng::Rng;
 use esp_hal::time::Instant;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
-use static_cell::StaticCell;
 use esp32c6_led::driver::Ws2812RmtDriver;
 use esp32c6_led::effect::PulsatingColor;
-use esp32c6_led::lamp::{LampState, SharedLamp};
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
 use esp32c6_led::zigbee::start_zigbee;
-use esp32c6_led::timing::LoopTimings;
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
@@ -38,17 +35,12 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
 
-// Our shared (between renderer and zigbee) lamp state
-static LAMP: StaticCell<SharedLamp> = StaticCell::new();
-
 #[allow(
     clippy::large_stack_frames,
     reason = "it's not unusual to allocate larger buffers etc. in main"
 )]
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
-    let lamp: &SharedLamp = LAMP.init(SharedLamp::new(LampState::default()));
-
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
@@ -63,7 +55,7 @@ async fn main(spawner: Spawner) -> ! {
     // Reserve 24 KiB of RAM and register it with the global allocator.
     esp_alloc::heap_allocator!(size: 24 * 1024);
 
-    start_zigbee(spawner, peripherals.IEEE802154, peripherals.FLASH, lamp).await;
+    let lamp_state = start_zigbee(spawner, peripherals.IEEE802154, peripherals.FLASH).await;
 
     let rng = Rng::new();
 
@@ -75,11 +67,14 @@ async fn main(spawner: Spawner) -> ! {
     let mut driver = Ws2812RmtDriver::new(peripherals.RMT, peripherals.GPIO8);
     let mut ctx = RenderContext::new(&rng, 10);
 
+    // todo: apply LED HW limits and capabilities to lamp_state so zigbee can match capabilities
+
     println!("Starting rendering loop");
 
     // Set up a ticker for 40 hz
     let mut ticker = Ticker::every(Duration::from_millis(25));
 
+    // Uncomment this and the other timing lines to measure render loop performance
     // let mut timing = LoopTimings::<400>::new("renderer");
 
     loop {
@@ -89,7 +84,7 @@ async fn main(spawner: Spawner) -> ! {
         // fixme: using f32 might not be stable for long uptimes
         ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1_000_000.0;
 
-        render(&mut ctx, &mut layout, &mut effect, &mut driver, lamp);
+        render(&mut ctx, &mut layout, &mut effect, &mut driver, lamp_state);
 
         // timing.end_work();
         // if timing.report_if_ready() {
