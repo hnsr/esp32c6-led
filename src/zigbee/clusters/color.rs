@@ -99,9 +99,6 @@ const COLOR_ATTRIBUTES: &[AttrInfo] = &[
     COLOR_TEMP_MAX.attr_info(),
 ];
 
-// Set bits for XY and temperature capabilities
-const SUPPORTED_COLOR_CAPABILITIES: ColorCapabilities = ColorCapabilities((1 << 3) | (1 << 4));
-
 const COMMAND_MOVE_TO_COLOR: u8 = 0x07;
 const COMMAND_MOVE_TO_COLOR_TEMPERATURE: u8 = 0x0a;
 
@@ -155,7 +152,14 @@ impl ClusterServer for ColorControlServer {
                 offset,
             ),
             0x4001 => COLOR_ENHANCED_MODE.encode(self.color_mode(), out, offset),
-            0x400a => COLOR_CAPABILITIES.encode(SUPPORTED_COLOR_CAPABILITIES, out, offset),
+            0x400a => COLOR_CAPABILITIES.encode(
+                ColorCapabilities(
+                    (u16::from(lamp.capabilities.supports_xy) << 3)
+                        | (u16::from(lamp.capabilities.supports_temperature) << 4),
+                ),
+                out,
+                offset,
+            ),
             0x400b => COLOR_TEMP_MIN.encode(Uint16(lamp.capabilities.temperature_min), out, offset),
             0x400c => COLOR_TEMP_MAX.encode(Uint16(lamp.capabilities.temperature_max), out, offset),
             _ => return Status::UnsupportedAttribute,
@@ -197,6 +201,19 @@ impl ClusterServer for ColorControlServer {
     }
 
     fn command(&self, command: ClusterCommand<'_>, _out: &mut [u8]) -> CommandOutcome {
+        let lamp = self.lamp.get();
+
+        // Silently ignore commands we don't support
+        match command.id.0 {
+            COMMAND_MOVE_TO_COLOR if !lamp.capabilities.supports_xy => {
+                return CommandOutcome::Status(Status::Success);
+            }
+            COMMAND_MOVE_TO_COLOR_TEMPERATURE if !lamp.capabilities.supports_temperature => {
+                return CommandOutcome::Status(Status::Success);
+            },
+            _ => {}
+        }
+
         let base_len = match command.id.0 {
             COMMAND_MOVE_TO_COLOR => 6, // payload: x: u16, y: u16, transition: u16
             COMMAND_MOVE_TO_COLOR_TEMPERATURE => 4, // payload: temperature: u16, transition: u16
@@ -215,8 +232,6 @@ impl ClusterServer for ColorControlServer {
                 return CommandOutcome::Status(Status::MalformedCommand);
             }
         };
-
-        let lamp = self.lamp.get();
 
         // Load default options, apply per-command overrides
         let defaults = self.options.load(Ordering::Relaxed);

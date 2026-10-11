@@ -68,8 +68,8 @@ async fn main(spawner: Spawner) -> ! {
 
     // todo: apply LED HW limits and capabilities
     let lamp_capabilities = LampCapabilities::new(
-        false,
-        false,
+        true,
+        true,
         153,
         500
     );
