@@ -6,7 +6,7 @@ use zigbee::zcl::clusters::general::basic::BasicServer;
 use zigbee::zcl::clusters::general::identify::IdentifyServer;
 use zigbee::zcl::server::UnsupportedClusterResponder;
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::zigbee::lamp_state::SharedLampState;
+use crate::zigbee::lamp::SharedLampState;
 
 pub mod color;
 pub mod level;
@@ -25,7 +25,9 @@ pub(super) type Handler = (
     UnsupportedClusterResponder<'static>,
 );
 
-pub(super) fn build_handler(lamp: &'static SharedLampState) -> Handler {
+pub(super) fn build_handler(
+    lamp: &'static SharedLampState
+) -> Handler {
     let on_off_server = OnOffServer::new(lamp);
     let level_server = LevelControlServer::new(lamp);
     let color_server = ColorControlServer::new(lamp);

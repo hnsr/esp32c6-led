@@ -4,7 +4,7 @@ use crate::effect::Effect;
 use crate::layout::Layout;
 use esp_hal::rng::Rng;
 use crate::color;
-use crate::zigbee::lamp_state::{ColorMode, SharedLampState};
+use crate::zigbee::lamp::{ColorMode, SharedLampState};
 
 pub struct RenderContext<'a> {
     pub base_color: Rgbw,

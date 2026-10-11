@@ -2,7 +2,7 @@ use zigbee::zcl::frame::Status;
 use zigbee::zcl::server::{ClusterCommand, ClusterServer, CommandOutcome};
 use zigbee::zcl::types::{AttrInfo, Attribute, AttributeId, Bool, Cluster, ClusterId};
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::zigbee::lamp_state::SharedLampState;
+use crate::zigbee::lamp::SharedLampState;
 
 const ON_OFF_CLUSTER: Cluster = Cluster::new(ClusterId(0x0006), "On/Off");
 

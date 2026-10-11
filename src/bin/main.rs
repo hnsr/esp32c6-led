@@ -20,6 +20,7 @@ use esp32c6_led::driver::Ws2812RmtDriver;
 use esp32c6_led::effect::PulsatingColor;
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
+use esp32c6_led::zigbee::lamp::LampCapabilities;
 use esp32c6_led::zigbee::start_zigbee;
 
 #[panic_handler]
@@ -55,8 +56,6 @@ async fn main(spawner: Spawner) -> ! {
     // Reserve 24 KiB of RAM and register it with the global allocator.
     esp_alloc::heap_allocator!(size: 24 * 1024);
 
-    let lamp_state = start_zigbee(spawner, peripherals.IEEE802154, peripherals.FLASH).await;
-
     let rng = Rng::new();
 
     println!("Instantiating layout, effect and driver");
@@ -67,7 +66,20 @@ async fn main(spawner: Spawner) -> ! {
     let mut driver = Ws2812RmtDriver::new(peripherals.RMT, peripherals.GPIO8);
     let mut ctx = RenderContext::new(&rng, 10);
 
-    // todo: apply LED HW limits and capabilities to lamp_state so zigbee can match capabilities
+    // todo: apply LED HW limits and capabilities
+    let lamp_capabilities = LampCapabilities::new(
+        false,
+        false,
+        153,
+        500
+    );
+
+    let lamp_state = start_zigbee(
+        spawner,
+        peripherals.IEEE802154,
+        peripherals.FLASH,
+        lamp_capabilities
+    ).await;
 
     println!("Starting rendering loop");
 
@@ -78,7 +90,6 @@ async fn main(spawner: Spawner) -> ! {
     // let mut timing = LoopTimings::<400>::new("renderer");
 
     loop {
-
         // timing.begin();
 
         // fixme: using f32 might not be stable for long uptimes

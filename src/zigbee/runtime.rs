@@ -10,7 +10,7 @@ use esp_radio::ieee802154::Ieee802154;
 use esp_storage::FlashStorage;
 use static_cell::StaticCell;
 use zigbee_mac::esp::EspMlme;
-use crate::zigbee::lamp_state::{LampState, SharedLampState};
+use crate::zigbee::lamp::{LampCapabilities, LampState, SharedLampState};
 
 // Matches the `zigbee` partition in partitions.csv:
 // offset 0x3f0000, size 0x4000 (16 KiB)
@@ -53,14 +53,20 @@ pub async fn start_zigbee(
     spawner: Spawner,
     ieee802154: IEEE802154<'static>,
     flash: FLASH<'static>,
+    lamp_capabilities: LampCapabilities
 ) -> &'static SharedLampState {
     // fixme: replace fixed network ID with proper reset + join network logic
     let network_id_text = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/zigbee-network.txt",));
     let extended_pan_id = u64::from_str_radix(network_id_text.trim(), 16)
         .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
 
-    let lamp: &SharedLampState = LAMP.init(SharedLampState::new(LampState::default()));
-    let handler = build_handler(lamp);
+    let lamp_state: &SharedLampState = LAMP.init(SharedLampState::new(LampState::default()));
+    lamp_state.update(|mut state| {
+        state.capabilities = lamp_capabilities;
+        state
+    });
+
+    let handler = build_handler(lamp_state);
     let mac = init_radio_mac(ieee802154);
     let storage = init_storage(flash).await;
     let stack_config = build_stack_config(extended_pan_id);
@@ -81,7 +87,7 @@ pub async fn start_zigbee(
     spawner.spawn(stack_task(stack).expect("Zigbee task slot unavailable"));
     spawner.spawn(maintenance_task(stack).expect("Zigbee maintenance task slot unavailable"));
 
-    lamp
+    lamp_state
 }
 
 #[embassy_executor::task]

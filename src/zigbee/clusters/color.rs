@@ -6,8 +6,8 @@ use zigbee::zcl::types::{
     TypeId, Uint16, ZclBitmap8, ZclBitmap16, ZclEnum8,
 };
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::zigbee::lamp_state::ColorMode as LampColorMode;
-use crate::zigbee::lamp_state::SharedLampState;
+use crate::zigbee::lamp::ColorMode as LampColorMode;
+use crate::zigbee::lamp::SharedLampState;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
@@ -105,20 +105,18 @@ const SUPPORTED_COLOR_CAPABILITIES: ColorCapabilities = ColorCapabilities((1 << 
 const COMMAND_MOVE_TO_COLOR: u8 = 0x07;
 const COMMAND_MOVE_TO_COLOR_TEMPERATURE: u8 = 0x0a;
 
-// TODO: get limits from lamp (which should match hardware)
-const MIN_COLOR_MIREDS: u16 = 153;
-const MAX_COLOR_MIREDS: u16 = 500;
 
 pub(in crate::zigbee) struct ColorControlServer {
     lamp: &'static SharedLampState,
     options: AtomicU8, // fixme: move to lamp state as well?
+
 }
 
 impl ColorControlServer {
     pub(super) const fn new(lamp: &'static SharedLampState) -> Self {
         Self {
             lamp,
-            options: AtomicU8::new(0),
+            options: AtomicU8::new(0)
         }
     }
 
@@ -158,8 +156,8 @@ impl ClusterServer for ColorControlServer {
             ),
             0x4001 => COLOR_ENHANCED_MODE.encode(self.color_mode(), out, offset),
             0x400a => COLOR_CAPABILITIES.encode(SUPPORTED_COLOR_CAPABILITIES, out, offset),
-            0x400b => COLOR_TEMP_MIN.encode(Uint16(MIN_COLOR_MIREDS), out, offset),
-            0x400c => COLOR_TEMP_MAX.encode(Uint16(MAX_COLOR_MIREDS), out, offset),
+            0x400b => COLOR_TEMP_MIN.encode(Uint16(lamp.capabilities.temperature_min), out, offset),
+            0x400c => COLOR_TEMP_MAX.encode(Uint16(lamp.capabilities.temperature_max), out, offset),
             _ => return Status::UnsupportedAttribute,
         };
 
@@ -263,7 +261,10 @@ impl ClusterServer for ColorControlServer {
                     return CommandOutcome::Status(Status::InvalidValue);
                 }
 
-                let mireds = requested.clamp(MIN_COLOR_MIREDS, MAX_COLOR_MIREDS);
+                let mireds = requested.clamp(
+                    lamp.capabilities.temperature_min,
+                    lamp.capabilities.temperature_max
+                );
 
                 self.lamp.update(|mut state| {
                     state.temperature = mireds;
@@ -279,7 +280,6 @@ impl ClusterServer for ColorControlServer {
                     transition,
                 );
             }
-
             _ => unreachable!(),
         }
 
