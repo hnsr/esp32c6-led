@@ -30,12 +30,54 @@ picocom --baud 115200 --flow n --lower-rts --raise-dtr --noreset --imap lfcrlf /
 espflash erase-region --chip esp32c6 0x3f0000 0x4000 # Double check the range with partitions.csv
 ```
 
+Prefix with ESP_LOG to build with logging, for example:
+```shell
+# Log 'warn' level and higher, for our crate and zigbee log 'debug' and higher, but keep zdo at 'info'
+# to avoid noisy logging
+ESP_LOG='warn,esp32c6_led=debug,zigbee=debug,zigbee_core::zdo=info' cargo run --release
+```
+
 ## TODO
 
-- [ ] Implement Zigbee light control
-- [ ] Implement button for: rotating effects, reset zigbee association (long press)
-- [ ] Implement a robust, fixed refresh rate rendering loop
+- [x] Implement Zigbee light control
+- [x] Implement a robust, fixed refresh rate rendering loop
+- [ ] Implement button for: rotating effects (short press), reset zigbee association (long press)
 - [ ] Implement more effects, layouts
+
+## HW setup
+
+- Power supply
+  - Typically powered by 2A USB charger connected 5V and GND pins
+    - It's GND line is connected to: ESP32-C6 GND pin, level shifter GND, LED strip GND
+    - It's 5V line is connected to ESCP32-C6 5V pin, level shifter VB, LED strip 5V in
+  - For debugging sometimes powered from laptop USB-C port to on-board USB-C port
+    - This actually still powers the LED strip; it seems the 5V pin on the ESP32-C6 will be powered by
+      the USC-C port, when connected
+    - Amperage should not exceed 1A with this setup, due to physical current limit of the ESP32 
+- ESP32-C6 SuperMini
+  - Has an WS2812 RGB (not W) LED on GPIO8
+  - GPIO8 is wried into level convert A7
+  - 3V3 OUT is wried into level converter VA (voltage A)
+  - 3V3 OUT is wried into level converter OE (output enable - so it's always enabled)
+- Logic level converter (TXS0108E)
+  - B7 is wired into LED strip connector DATA line, with a resistor in between (TODO: look up resistance value)
+- BTF-Lighting RGBWW (warm white) LED strip (SK6812, WS2812B compatible), 1.27m, with 60 LEDs per meter
+  - BTF specs claim theoretical 0.3W power usage per LED, could be more?
+
+### Power usage and limits
+
+When powered through ESP USB-C port, amperage should be limited to 1A. Although this bypasses the voltage regulator
+and connects  to the 5V pin, the board may be physically limited to 1A.
+
+Account for about 1A per the first 13-14 LEDs, 2A for 30 LEDs (slightly less ESP/shifter/dark pixel overhead). So to
+power all ~76 pixels we need 4.5A-5A (22.5-25W).
+
+References:
+- https://kno.wled.ge/advanced/wiring/
+
+### TODO
+- Connect LED strip on separate GPIO pin
+- Connect button for effects/zigbee reset
 
 ## LED rendering
 
