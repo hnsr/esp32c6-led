@@ -61,7 +61,8 @@ ESP_LOG='warn,esp32c6_led=debug,zigbee=debug,zigbee_core::zdo=info' cargo run --
   - 3V3 OUT is wried into level converter OE (output enable - so it's always enabled)
 - Logic level converter (TXS0108E)
   - B7 is wired into LED strip connector DATA line, with a resistor in between (TODO: look up resistance value)
-- BTF-Lighting RGBWW (warm white) LED strip (SK6812, WS2812B compatible), 1.27m, with 60 LEDs per meter
+- BTF-Lighting RGBWW (warm white) LED strip (SK6812, WS2812B compatible)
+  - LED strip length is 1.27m, 78 LEDs total (60/meter)
   - BTF specs claim theoretical 0.3W power usage per LED, could be more?
 
 ### Power usage and limits

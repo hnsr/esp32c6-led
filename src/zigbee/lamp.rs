@@ -61,7 +61,7 @@ impl Default for LampState {
                 500
             ),
             on: true,
-            brightness: u8::MAX,
+            brightness: u8::MAX / 2,
             color_mode: ColorMode::Xy,
             x: XY_SRGB_WHITE_X,
             y: XY_SRGB_WHITE_Y,

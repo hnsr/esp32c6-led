@@ -41,7 +41,15 @@ impl<'a> Ws2812RmtDriver<'a> {
         let tx_config = TxChannelConfig::default()
             .with_clk_divider(1)
             .with_idle_output_level(Level::Low)
-            .with_idle_output(true);
+            .with_idle_output(true)
+            // Increase number of memory blocks from the default of 1. With only 1 block, we suffer
+            // from RMT buffer underrun due to Zigbee radio interrupts, causing LEDs to occasionally
+            // glitch (as it will wrap and send stale pulsecodes we didn't update in time).
+            // Memsize 4 mitigates this, at least up to ~80 LEDs. But we now claim all (shared) RMT
+            // blocks, so if we need more RMT channels or if the issue returns with a larger number
+            // of LEDs we should consider SPI with DMA to transfer pulsecodes, which can't be
+            // interrupted by the radio.
+            .with_memsize(4);
         let channel = rmt
             .channel0
             .configure_tx(&tx_config)

@@ -95,7 +95,7 @@ async fn main(spawner: Spawner) -> ! {
         // fixme: using f32 might not be stable for long uptimes
         ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1_000_000.0;
 
-        render(&mut ctx, &mut layout, &mut effect, &mut driver, lamp_state);
+        render(&mut ctx, &mut layout, &mut effect, &mut driver, Some(lamp_state));
 
         // timing.end_work();
         // if timing.report_if_ready() {

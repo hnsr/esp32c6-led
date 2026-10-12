@@ -18,12 +18,12 @@ impl<'a> RenderContext<'a> {
     pub fn new(rng: &'a Rng, led_count: usize) -> Self {
         Self {
             base_color: Rgbw {
-                red: 0.0,
-                green: 0.0,
-                blue: 0.0,
+                red: 1.0,
+                green: 1.0,
+                blue: 1.0,
                 white: 0.0,
             },
-            brightness: 0.0,
+            brightness: 0.05,
             led_count,
             time_s: 0.0,
             rng,
@@ -31,15 +31,7 @@ impl<'a> RenderContext<'a> {
     }
 }
 
-pub fn render(
-    ctx: &mut RenderContext,
-    layout: &mut dyn Layout,
-    effect: &mut dyn Effect,
-    driver: &mut dyn Driver,
-    lamp: &SharedLampState
-) {
-    driver.begin_frame();
-
+fn apply_lamp_state(ctx: &mut RenderContext, lamp: &SharedLampState) {
     // Get snapshot of lamp state, and apply it to the render context base_color and brightness
     let lamp = lamp.get();
 
@@ -57,6 +49,20 @@ pub fn render(
         // todo: we should probably also skip rendering, but we need to render at lest one frame
         //       to switch off the LEDs
         ctx.brightness = 0.0;
+    }
+}
+
+pub fn render(
+    ctx: &mut RenderContext,
+    layout: &mut dyn Layout,
+    effect: &mut dyn Effect,
+    driver: &mut dyn Driver,
+    lamp: Option<&SharedLampState>
+) {
+    driver.begin_frame();
+
+    if let Some(lamp) = lamp {
+        apply_lamp_state(ctx, lamp);
     }
 
     for index in 0..ctx.led_count {
