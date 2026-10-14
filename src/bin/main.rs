@@ -83,13 +83,7 @@ async fn main(spawner: Spawner) -> ! {
     let mut driver = AddressableLedRmtDriver::new(peripherals.RMT, peripherals.GPIO8);
     let mut ctx = RenderContext::new(&rng, config.led_count);
 
-    // todo: apply LED HW limits and capabilities based on diodes and emulataion config.
-    let lamp_capabilities = LampCapabilities::new(
-        true,
-        true,
-        153,
-        500
-    );
+    let lamp_capabilities = LampCapabilities::from_hardware(&config);
 
     let lamp_state = start_zigbee(
         spawner,

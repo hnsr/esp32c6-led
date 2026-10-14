@@ -1,4 +1,5 @@
 use core::cell::Cell;
+use crate::hw::{DiodeLayout, HardwareConfig, TemperatureRange};
 
 // Approximate X/Y values for (s)RGB white, which we want to use as the default
 const XY_SRGB_WHITE_X: u16 = 0x500D;
@@ -95,4 +96,85 @@ impl LampCapabilities {
             temperature_max,
         }
     }
+    pub fn from_hardware(hw: &HardwareConfig) -> Self {
+        let supports_xy = match hw.diodes {
+            DiodeLayout::White { .. } => false,
+            DiodeLayout::WhiteCct { .. } => false,
+            DiodeLayout::Rgb { .. } => true,
+            DiodeLayout::Rgbw { .. } => true,
+            DiodeLayout::RgbCct { .. } => true,
+        };
+
+        let temperature_range = match hw.diodes {
+            DiodeLayout::White {
+                physical_temperature,
+            } => {
+                // One white emitter so only one native temperature
+                Some(TemperatureRange {
+                    min_kelvin: physical_temperature,
+                    max_kelvin: physical_temperature,
+                })
+            }
+
+            DiodeLayout::WhiteCct {
+                physical_temperature,
+            } => Some(physical_temperature),
+
+            DiodeLayout::Rgb {
+                emulated_temperature,
+            } => {
+                // RGB has no native white temperature so this is either the configured emulation
+                // range or None
+                emulated_temperature
+            }
+
+            DiodeLayout::Rgbw {
+                physical_temperature,
+                emulated_temperature,
+            } => {
+                let native_range = TemperatureRange {
+                    min_kelvin: physical_temperature,
+                    max_kelvin: physical_temperature,
+                };
+
+                // Use the emulation range when present, otherwise pass on native temperature as a
+                // range
+                Some(emulated_temperature.unwrap_or(native_range))
+            }
+
+            DiodeLayout::RgbCct {
+                physical_temperature,
+            } => Some(physical_temperature),
+        };
+
+        let (supports_temperature, temperature_min, temperature_max) =
+            match temperature_range {
+                Some(range) => {
+                    assert!(range.min_kelvin > 0);
+                    assert!(range.min_kelvin <= range.max_kelvin);
+
+                    let min = kelvin_to_mireds(range.max_kelvin);
+                    let max = kelvin_to_mireds(range.min_kelvin);
+
+                    // Advertise adjustable temperature only when there's an actual range
+                    (min < max, min, max)
+                }
+                // Temperature control is unavailable
+                None => (false, 0, 0),
+            };
+
+        Self::new(
+            supports_xy,
+            supports_temperature,
+            temperature_min,
+            temperature_max,
+        )
+    }
+}
+
+// fixme: move to color.rs?
+fn kelvin_to_mireds(kelvin: u16) -> u16 {
+    let kelvin = u32::from(kelvin);
+    let mireds = (1_000_000 + kelvin / 2) / kelvin;
+    u16::try_from(mireds).expect("temperature exceeds u16 mired range")
 }
