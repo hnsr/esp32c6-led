@@ -70,7 +70,7 @@ async fn main(spawner: Spawner) -> ! {
         },
         diodes: DiodeLayout::Rgbw {
             physical_temperature: 2700,
-            emulated_temperature: Option::from(TemperatureRange {
+            emulated_temperature: Some(TemperatureRange {
                 min_kelvin: 2200,
                 max_kelvin: 6500,
             }),
