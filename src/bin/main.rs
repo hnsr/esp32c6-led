@@ -16,8 +16,9 @@ use esp_hal::rng::Rng;
 use esp_hal::time::Instant;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
-use esp32c6_led::driver::Ws2812RmtDriver;
+use esp32c6_led::driver::AddressableLedRmtDriver;
 use esp32c6_led::effect::PulsatingColor;
+use esp32c6_led::hw::{DiodeLayout, HardwareConfig, HardwareKind, LedChip, TemperatureRange};
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
 use esp32c6_led::zigbee::lamp::LampCapabilities;
@@ -62,11 +63,27 @@ async fn main(spawner: Spawner) -> ! {
 
     let mut layout = Linear {};
     let mut effect = PulsatingColor {};
-    // fixme: make GPIO8 variable depending on LED HW config
-    let mut driver = Ws2812RmtDriver::new(peripherals.RMT, peripherals.GPIO8);
-    let mut ctx = RenderContext::new(&rng, 10);
 
-    // todo: apply LED HW limits and capabilities
+    let config = HardwareConfig {
+        kind: HardwareKind::AddressableStrip {
+            chip: LedChip::Sk6812,
+        },
+        diodes: DiodeLayout::Rgbw {
+            physical_temperature: 2700,
+            emulated_temperature: Option::from(TemperatureRange {
+                min_kelvin: 2200,
+                max_kelvin: 6500,
+            }),
+        },
+        led_count: 10,
+    };
+
+    // fixme: pick driver based on config
+    // fixme: make GPIO8 variable depending on LED HW config
+    let mut driver = AddressableLedRmtDriver::new(peripherals.RMT, peripherals.GPIO8);
+    let mut ctx = RenderContext::new(&rng, config.led_count);
+
+    // todo: apply LED HW limits and capabilities based on diodes and emulataion config.
     let lamp_capabilities = LampCapabilities::new(
         true,
         true,

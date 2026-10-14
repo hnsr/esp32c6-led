@@ -8,3 +8,4 @@ pub mod math;
 pub mod render;
 pub mod zigbee;
 pub mod timing;
+pub mod hw;

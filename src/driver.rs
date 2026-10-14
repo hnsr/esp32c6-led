@@ -21,19 +21,21 @@ pub trait Driver {
 }
 
 // todo: Move to submodule
-// todo: add driver config (GPIO)
+// todo: support dynamic GPIO
+// todo: implement correct timings for the various chips
+// todo: allocate pulsecode buffer on the heap based on leds?
 
-pub struct Ws2812RmtDriver<'a> {
+pub struct AddressableLedRmtDriver<'a> {
     buffer: [PulseCode; MAX_LEDS * 32 + 1],
     // Needs to be an Option, because we need to move the Channel value out while transmmitting.
     channel: Option<Channel<'a, Blocking, Tx>>,
     max_index: usize,
 }
 
-const WS2812_ZERO: PulseCode = PulseCode::new(Level::High, 24, Level::Low, 76);
-const WS2812_ONE: PulseCode = PulseCode::new(Level::High, 48, Level::Low, 52);
+const SK6812_ZERO: PulseCode = PulseCode::new(Level::High, 24, Level::Low, 76);
+const SK6812_ONE: PulseCode = PulseCode::new(Level::High, 48, Level::Low, 52);
 
-impl<'a> Ws2812RmtDriver<'a> {
+impl<'a> AddressableLedRmtDriver<'a> {
     pub fn new(rmt: RMT<'a>, gpio: GPIO8<'a>) -> Self {
         // The integrated WS2812B-compatible RGB LED is connected to GPIO 8. At an
         // 80 MHz RMT clock, one tick is 12.5 ns; each encoded bit totals 100 ticks.
@@ -64,7 +66,7 @@ impl<'a> Ws2812RmtDriver<'a> {
     }
 }
 
-impl Driver for Ws2812RmtDriver<'_> {
+impl Driver for AddressableLedRmtDriver<'_> {
     fn write_led(&mut self, index: usize, color: Rgbw) {
         // Write single color to buffer.
 
@@ -109,9 +111,9 @@ fn get_pulsecodes_for_color(red: u8, green: u8, blue: u8, white: u8) -> [PulseCo
     for (bit, pulse) in pulses.iter_mut().enumerate() {
         let mask = 1 << (31 - bit);
         *pulse = if color & mask == 0 {
-            WS2812_ZERO
+            SK6812_ZERO
         } else {
-            WS2812_ONE
+            SK6812_ONE
         };
     }
 
