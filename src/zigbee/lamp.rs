@@ -6,15 +6,17 @@ const XY_SRGB_WHITE_X: u16 = 0x500D;
 const XY_SRGB_WHITE_Y: u16 = 0x5439;
 
 // Temperature (in mireds) for warm white (2700K) and cool white (6500K)
-const TEMPERATURE_MIREDS_6500K: u16 = 154; // Cool
+//const TEMPERATURE_MIREDS_6500K: u16 = 154; // Cool
 const TEMPERATURE_MIREDS_2700K: u16 = 370; // Warm
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorMode {
     Xy,
     Temperature
 }
+
+// fixme: should improve naming of brightness, temperature fields. also make temperature stuff less
+//        confusing? what do we publish on zigbee if we have a white diode but no actual control?
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LampState {
@@ -34,6 +36,37 @@ pub struct LampState {
 }
 
 impl LampState {
+    // Create initial state using some defaults, but constrained to lamp capabilities
+    // todo: at some point we want to load lamp state from flash, but it must still be constrained
+    //       to capabilities.
+    pub fn new(capabilities: LampCapabilities) -> Self {
+        let temperature = if capabilities.temperature_min > 0 {
+            TEMPERATURE_MIREDS_2700K.clamp(
+                capabilities.temperature_min,
+                capabilities.temperature_max,
+            )
+        } else {
+            // Unused for RGB without temperature emulation.
+            0
+        };
+
+        let color_mode = if capabilities.supports_xy {
+            ColorMode::Xy
+        } else {
+            ColorMode::Temperature
+        };
+
+        Self {
+            capabilities,
+            on: true,
+            brightness: u8::MAX / 2,
+            color_mode,
+            x: XY_SRGB_WHITE_X,
+            y: XY_SRGB_WHITE_Y,
+            temperature,
+        }
+    }
+
     pub fn get_brightness(&self) -> f32 {
         f32::from(self.brightness) / 254.0
     }
@@ -51,26 +84,6 @@ impl LampState {
     }
 }
 
-// fixme: these defaults and the nested capabilities are a bit awkward, maybe rethink this
-impl Default for LampState {
-    fn default() -> Self {
-        Self {
-            capabilities: LampCapabilities::new(
-                true,
-                true,
-                TEMPERATURE_MIREDS_6500K,
-                500
-            ),
-            on: true,
-            brightness: u8::MAX / 2,
-            color_mode: ColorMode::Xy,
-            x: XY_SRGB_WHITE_X,
-            y: XY_SRGB_WHITE_Y,
-            temperature: TEMPERATURE_MIREDS_2700K,
-        }
-    }
-}
-
 pub type SharedLampState = Cell<LampState>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -83,19 +96,6 @@ pub struct LampCapabilities {
 }
 
 impl LampCapabilities {
-    pub fn new(
-        supports_xy: bool,
-        supports_temperature: bool,
-        temperature_min: u16,
-        temperature_max: u16
-    ) -> Self {
-        Self {
-            supports_xy,
-            supports_temperature,
-            temperature_min,
-            temperature_max,
-        }
-    }
     pub fn from_hardware(hw: &HardwareConfig) -> Self {
         let supports_xy = match hw.diodes {
             DiodeLayout::White { .. } => false,
@@ -163,12 +163,12 @@ impl LampCapabilities {
                 None => (false, 0, 0),
             };
 
-        Self::new(
+        Self {
             supports_xy,
             supports_temperature,
             temperature_min,
             temperature_max,
-        )
+        }
     }
 }
 

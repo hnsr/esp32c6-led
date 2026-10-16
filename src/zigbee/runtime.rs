@@ -60,7 +60,9 @@ pub async fn start_zigbee(
     let extended_pan_id = u64::from_str_radix(network_id_text.trim(), 16)
         .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
 
-    let lamp_state: &SharedLampState = LAMP.init(SharedLampState::new(LampState::default()));
+    let lamp_state: &SharedLampState =
+        LAMP.init(SharedLampState::new(LampState::new(lamp_capabilities)));
+
     lamp_state.update(|mut state| {
         state.capabilities = lamp_capabilities;
         state
