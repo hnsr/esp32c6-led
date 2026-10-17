@@ -160,8 +160,8 @@ impl ClusterServer for ColorControlServer {
                 out,
                 offset,
             ),
-            0x400b => COLOR_TEMP_MIN.encode(Uint16(lamp.capabilities.temperature_min), out, offset),
-            0x400c => COLOR_TEMP_MAX.encode(Uint16(lamp.capabilities.temperature_max), out, offset),
+            0x400b => COLOR_TEMP_MIN.encode(Uint16(lamp.capabilities.temperature_min_mireds), out, offset),
+            0x400c => COLOR_TEMP_MAX.encode(Uint16(lamp.capabilities.temperature_max_mireds), out, offset),
             _ => return Status::UnsupportedAttribute,
         };
 
@@ -277,8 +277,8 @@ impl ClusterServer for ColorControlServer {
                 }
 
                 let mireds = requested.clamp(
-                    lamp.capabilities.temperature_min,
-                    lamp.capabilities.temperature_max
+                    lamp.capabilities.temperature_min_mireds,
+                    lamp.capabilities.temperature_max_mireds
                 );
 
                 self.lamp.update(|mut state| {

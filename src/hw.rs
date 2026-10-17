@@ -24,20 +24,20 @@ pub enum LedChip {
 #[derive(Clone, Copy, Debug)]
 pub enum DiodeLayout {
     White {
-        physical_temperature: u16,
+        physical_temperature_kelvin: u16,
     },
     WhiteCct {
-        physical_temperature: TemperatureRange
+        physical_temperature_kelvin: TemperatureRange
     },
     Rgb {
-        emulated_temperature: Option<TemperatureRange>,
+        emulated_temperature_kelvin: Option<TemperatureRange>,
     },
     Rgbw {
-        physical_temperature: u16,
-        emulated_temperature: Option<TemperatureRange>,
+        physical_temperature_kelvin: u16,
+        emulated_temperature_kelvin: Option<TemperatureRange>,
     },
     RgbCct {
-        physical_temperature: TemperatureRange
+        physical_temperature_kelvin: TemperatureRange
     },
 }
 

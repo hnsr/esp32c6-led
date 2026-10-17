@@ -40,10 +40,10 @@ impl LampState {
     // todo: at some point we want to load lamp state from flash, but it must still be constrained
     //       to capabilities.
     pub fn new(capabilities: LampCapabilities) -> Self {
-        let temperature = if capabilities.temperature_min > 0 {
+        let temperature = if capabilities.temperature_min_mireds > 0 {
             TEMPERATURE_MIREDS_2700K.clamp(
-                capabilities.temperature_min,
-                capabilities.temperature_max,
+                capabilities.temperature_min_mireds,
+                capabilities.temperature_max_mireds,
             )
         } else {
             // Unused for RGB without temperature emulation.
@@ -90,8 +90,8 @@ pub type SharedLampState = Cell<LampState>;
 pub struct LampCapabilities {
     pub(super) supports_xy: bool,
     pub(super) supports_temperature: bool,
-    pub(super) temperature_min: u16,
-    pub(super) temperature_max: u16,
+    pub(super) temperature_min_mireds: u16,
+    pub(super) temperature_max_mireds: u16,
 
 }
 
@@ -107,7 +107,7 @@ impl LampCapabilities {
 
         let temperature_range = match hw.diodes {
             DiodeLayout::White {
-                physical_temperature,
+                physical_temperature_kelvin: physical_temperature,
             } => {
                 // One white emitter so only one native temperature
                 Some(TemperatureRange {
@@ -117,11 +117,11 @@ impl LampCapabilities {
             }
 
             DiodeLayout::WhiteCct {
-                physical_temperature,
+                physical_temperature_kelvin: physical_temperature,
             } => Some(physical_temperature),
 
             DiodeLayout::Rgb {
-                emulated_temperature,
+                emulated_temperature_kelvin: emulated_temperature,
             } => {
                 // RGB has no native white temperature so this is either the configured emulation
                 // range or None
@@ -129,8 +129,8 @@ impl LampCapabilities {
             }
 
             DiodeLayout::Rgbw {
-                physical_temperature,
-                emulated_temperature,
+                physical_temperature_kelvin: physical_temperature,
+                emulated_temperature_kelvin: emulated_temperature,
             } => {
                 let native_range = TemperatureRange {
                     min_kelvin: physical_temperature,
@@ -143,7 +143,7 @@ impl LampCapabilities {
             }
 
             DiodeLayout::RgbCct {
-                physical_temperature,
+                physical_temperature_kelvin: physical_temperature,
             } => Some(physical_temperature),
         };
 
@@ -166,8 +166,8 @@ impl LampCapabilities {
         Self {
             supports_xy,
             supports_temperature,
-            temperature_min,
-            temperature_max,
+            temperature_min_mireds: temperature_min,
+            temperature_max_mireds: temperature_max,
         }
     }
 }
