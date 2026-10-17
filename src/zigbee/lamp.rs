@@ -23,7 +23,7 @@ pub struct LampState {
     pub on: bool,
     pub color_mode: ColorMode,
 
-    pub(super) brightness: u8,
+    pub(super) level: u8,
 
     // Color in XY
     pub(super) x: u16,
@@ -59,7 +59,7 @@ impl LampState {
         Self {
             capabilities,
             on: true,
-            brightness: u8::MAX / 2,
+            level: u8::MAX / 2,
             color_mode,
             x: XY_SRGB_WHITE_X,
             y: XY_SRGB_WHITE_Y,
@@ -67,8 +67,8 @@ impl LampState {
         }
     }
 
-    pub fn get_brightness(&self) -> f32 {
-        f32::from(self.brightness) / 254.0
+    pub fn get_level(&self) -> f32 {
+        f32::from(self.level) / 254.0
     }
 
     pub fn get_x(&self) -> f32 {

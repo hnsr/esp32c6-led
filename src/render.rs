@@ -8,7 +8,7 @@ use crate::zigbee::lamp::{ColorMode, SharedLampState};
 
 pub struct RenderContext<'a> {
     pub base_color: Rgbw,
-    pub brightness: f32,
+    pub base_level: f32,
     pub led_count: usize,
     pub time_s: f32,
     pub rng: &'a Rng,
@@ -23,7 +23,7 @@ impl<'a> RenderContext<'a> {
                 blue: 1.0,
                 white: 0.0,
             },
-            brightness: 0.05,
+            base_level: 0.05,
             led_count,
             time_s: 0.0,
             rng,
@@ -40,15 +40,16 @@ fn apply_lamp_state(ctx: &mut RenderContext, lamp: &SharedLampState) {
         ColorMode::Xy => {
             color::convert_xy_to_rgbw(lamp.get_x(), lamp.get_y()).unwrap_or(ctx.base_color)
         },
-        // fixme: conversion depends on LED HW config
+        // fixme: conversion depends on LED HW config, belongs in driver actually. Should render
+        //        context be aware of, and implement color/temperature modes?
         ColorMode::Temperature => color::convert_mireds_to_rgbw(lamp.get_temperature())
     };
-    ctx.brightness = lamp.get_brightness();
+    ctx.base_level = lamp.get_level();
 
     if !lamp.on {
         // todo: we should probably also skip rendering, but we need to render at lest one frame
         //       to switch off the LEDs
-        ctx.brightness = 0.0;
+        ctx.base_level = 0.0;
     }
 }
 
@@ -69,10 +70,10 @@ pub fn render(
         let coord = layout.get_coord(index);
         let mut color = effect.get_color(ctx, index, coord);
 
-        color.red = color.red * ctx.brightness;
-        color.green = color.green * ctx.brightness;
-        color.blue = color.blue * ctx.brightness;
-        color.white = color.white * ctx.brightness;
+        color.red = color.red * ctx.base_level;
+        color.green = color.green * ctx.base_level;
+        color.blue = color.blue * ctx.base_level;
+        color.white = color.white * ctx.base_level;
 
         driver.write_led(index, color);
     }

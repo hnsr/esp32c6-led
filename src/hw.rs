@@ -15,6 +15,7 @@ pub enum HardwareKind {
 
 #[derive(Clone, Copy, Debug)]
 pub enum LedChip {
+    // todo: Implement correct timings for Ws2812*
     // Ws2812,
     // Ws2812b,
     Sk6812,

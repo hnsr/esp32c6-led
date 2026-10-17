@@ -27,7 +27,7 @@ impl LevelControlServer {
     }
 
     fn current_level(&self) -> u8 {
-        self.lamp.get().brightness
+        self.lamp.get().level
     }
 }
 
@@ -96,7 +96,7 @@ impl ClusterServer for LevelControlServer {
         // Clamp requested level to lamp limits
         let level = requested_level.clamp(MIN_LIGHT_LEVEL, MAX_LIGHT_LEVEL);
 
-        lamp.brightness = level;
+        lamp.level = level;
 
         // The "With On/Off" variant allows switching the light on/off as needed
         if with_on_off {
