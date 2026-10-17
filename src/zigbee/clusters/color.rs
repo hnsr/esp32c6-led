@@ -6,7 +6,7 @@ use zigbee::zcl::types::{
     TypeId, Uint16, ZclBitmap8, ZclBitmap16, ZclEnum8,
 };
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::zigbee::lamp::ColorMode as LampColorMode;
+use crate::zigbee::lamp::{ColorMode as LampColorMode, WhiteCapability};
 use crate::zigbee::lamp::SharedLampState;
 
 #[derive(Clone, Copy, Debug)]
@@ -137,6 +137,20 @@ impl ClusterServer for ColorControlServer {
     fn encode_value(&self, id: AttributeId, out: &mut [u8], offset: &mut usize) -> Status {
         let lamp = self.lamp.get();
 
+        let supports_temperature = match lamp.capabilities.supports_white {
+            WhiteCapability::None => false,
+            WhiteCapability::Fixed { .. } => false,
+            WhiteCapability::Range { .. } => true
+        };
+        let (temperature_min_mireds, temperature_max_mireds) =
+            match lamp.capabilities.supports_white {
+                WhiteCapability::None => (0,0 ),
+                WhiteCapability::Fixed { temperature_mireds } =>
+                    (temperature_mireds, temperature_mireds),
+                WhiteCapability::Range { temperature_min_mireds, temperature_max_mireds } =>
+                    ( temperature_min_mireds, temperature_max_mireds),
+        };
+
         let result = match id.0 {
             // Targets apply immediately, so no transition remains and we always return 0
             0x0002 => COLOR_REMAINING_TIME.encode(Uint16(0), out, offset),
@@ -152,16 +166,18 @@ impl ClusterServer for ColorControlServer {
                 offset,
             ),
             0x4001 => COLOR_ENHANCED_MODE.encode(self.color_mode(), out, offset),
-            0x400a => COLOR_CAPABILITIES.encode(
-                ColorCapabilities(
-                    (u16::from(lamp.capabilities.supports_xy) << 3)
-                        | (u16::from(lamp.capabilities.supports_temperature) << 4),
-                ),
-                out,
-                offset,
-            ),
-            0x400b => COLOR_TEMP_MIN.encode(Uint16(lamp.capabilities.temperature_min_mireds), out, offset),
-            0x400c => COLOR_TEMP_MAX.encode(Uint16(lamp.capabilities.temperature_max_mireds), out, offset),
+            0x400a => {
+                COLOR_CAPABILITIES.encode(
+                    ColorCapabilities(
+                        (u16::from(lamp.capabilities.supports_xy) << 3)
+                            | (u16::from(supports_temperature) << 4),
+                    ),
+                    out,
+                    offset,
+                )
+            },
+            0x400b => COLOR_TEMP_MIN.encode(Uint16(temperature_min_mireds), out, offset),
+            0x400c => COLOR_TEMP_MAX.encode(Uint16(temperature_max_mireds), out, offset),
             _ => return Status::UnsupportedAttribute,
         };
 
@@ -202,13 +218,18 @@ impl ClusterServer for ColorControlServer {
 
     fn command(&self, command: ClusterCommand<'_>, _out: &mut [u8]) -> CommandOutcome {
         let lamp = self.lamp.get();
+        let supports_temperature = match lamp.capabilities.supports_white {
+            WhiteCapability::None => false,
+            WhiteCapability::Fixed { .. } => false,
+            WhiteCapability::Range { .. } => true,
+        };
 
         // Silently ignore commands we don't support
         match command.id.0 {
             COMMAND_MOVE_TO_COLOR if !lamp.capabilities.supports_xy => {
                 return CommandOutcome::Status(Status::Success);
             }
-            COMMAND_MOVE_TO_COLOR_TEMPERATURE if !lamp.capabilities.supports_temperature => {
+            COMMAND_MOVE_TO_COLOR_TEMPERATURE if !supports_temperature => {
                 return CommandOutcome::Status(Status::Success);
             },
             _ => {}
@@ -271,14 +292,22 @@ impl ClusterServer for ColorControlServer {
             COMMAND_MOVE_TO_COLOR_TEMPERATURE => {
                 let requested = u16::from_le_bytes([body[0], body[1]]);
                 let transition = u16::from_le_bytes([body[2], body[3]]);
+                let (temperature_min_mireds, temperature_max_mireds) =
+                    match lamp.capabilities.supports_white {
+                        WhiteCapability::None => (0,0 ),
+                        WhiteCapability::Fixed { temperature_mireds } =>
+                            (temperature_mireds, temperature_mireds),
+                        WhiteCapability::Range { temperature_min_mireds, temperature_max_mireds } =>
+                            ( temperature_min_mireds, temperature_max_mireds),
+                    };
 
                 if requested > 0xfeff {
                     return CommandOutcome::Status(Status::InvalidValue);
                 }
 
                 let mireds = requested.clamp(
-                    lamp.capabilities.temperature_min_mireds,
-                    lamp.capabilities.temperature_max_mireds
+                    temperature_min_mireds,
+                    temperature_max_mireds
                 );
 
                 self.lamp.update(|mut state| {

@@ -6,7 +6,6 @@ const XY_SRGB_WHITE_X: u16 = 0x500D;
 const XY_SRGB_WHITE_Y: u16 = 0x5439;
 
 // Temperature (in mireds) for warm white (2700K) and cool white (6500K)
-//const TEMPERATURE_MIREDS_6500K: u16 = 154; // Cool
 const TEMPERATURE_MIREDS_2700K: u16 = 370; // Warm
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,9 +13,6 @@ pub enum ColorMode {
     Xy,
     Temperature
 }
-
-// fixme: should improve naming of brightness, temperature fields. also make temperature stuff less
-//        confusing? what do we publish on zigbee if we have a white diode but no actual control?
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LampState {
@@ -40,14 +36,15 @@ impl LampState {
     // todo: at some point we want to load lamp state from flash, but it must still be constrained
     //       to capabilities.
     pub fn new(capabilities: LampCapabilities) -> Self {
-        let temperature = if capabilities.temperature_min_mireds > 0 {
-            TEMPERATURE_MIREDS_2700K.clamp(
-                capabilities.temperature_min_mireds,
-                capabilities.temperature_max_mireds,
-            )
-        } else {
-            // Unused for RGB without temperature emulation.
-            0
+        let temperature = match capabilities.supports_white {
+            WhiteCapability::None => 0,
+            WhiteCapability::Fixed { temperature_mireds } => temperature_mireds,
+            WhiteCapability::Range { temperature_min_mireds, temperature_max_mireds } => {
+                TEMPERATURE_MIREDS_2700K.clamp(
+                    temperature_min_mireds,
+                    temperature_max_mireds,
+                )
+            }
         };
 
         let color_mode = if capabilities.supports_xy {
@@ -89,10 +86,23 @@ pub type SharedLampState = Cell<LampState>;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LampCapabilities {
     pub(super) supports_xy: bool,
-    pub(super) supports_temperature: bool,
-    pub(super) temperature_min_mireds: u16,
-    pub(super) temperature_max_mireds: u16,
+    pub(super) supports_white: WhiteCapability,
+}
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WhiteCapability {
+    None,
+
+    // Emits white light at a fixed temperature
+    Fixed {
+        temperature_mireds: u16,
+    },
+
+    // Emits white light and allows temperature selection
+    Range {
+        temperature_min_mireds: u16,
+        temperature_max_mireds: u16,
+    },
 }
 
 impl LampCapabilities {
@@ -147,7 +157,7 @@ impl LampCapabilities {
             } => Some(physical_temperature),
         };
 
-        let (supports_temperature, temperature_min, temperature_max) =
+        let white_capability =
             match temperature_range {
                 Some(range) => {
                     assert!(range.min_kelvin > 0);
@@ -155,19 +165,22 @@ impl LampCapabilities {
 
                     let min = kelvin_to_mireds(range.max_kelvin);
                     let max = kelvin_to_mireds(range.min_kelvin);
-
-                    // Advertise adjustable temperature only when there's an actual range
-                    (min < max, min, max)
+                    if min < max {
+                        WhiteCapability::Range {
+                            temperature_min_mireds: min,
+                            temperature_max_mireds: max
+                        }
+                    } else {
+                        WhiteCapability::Fixed { temperature_mireds: min }
+                    }
                 }
                 // Temperature control is unavailable
-                None => (false, 0, 0),
+                None => WhiteCapability::None,
             };
 
         Self {
             supports_xy,
-            supports_temperature,
-            temperature_min_mireds: temperature_min,
-            temperature_max_mireds: temperature_max,
+            supports_white: white_capability
         }
     }
 }

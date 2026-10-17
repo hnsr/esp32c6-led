@@ -86,13 +86,23 @@ References:
 
 ## LED rendering
 
-(Work in progress)
+The general flow is:
 
+- HardwareConfig determines LampCapabilities
+- LampState is constrained by LampCapabilities
+- LampState + LampCapabilities influence Zigbee device type and cluster options/capabilities
+- Zigbee controls LampState
+- LampState sets RenderContext 'base pixel value' / 'level'
+- Render logic applies effects using 'base pixel value' / 'level', and provides the resulting value for each
+  output pixel
+- Driver sends resulting pixel values to hardware
+
+### Layouts, effects
 Driving the LED strip is implemented as a kind of graphics pipeline with two main pieces which
 can have different implementations:
 
-- Layout: determines where each LED is physically located in space
-- Effect: determines the color of a specific LED
+- Layout: determines where each LED is physically located in space (i.e. vertex shader)
+- Effect: determines the color of a specific LED (i.e. pixel shader)
 
 For determining the layout, different implementations exist for linear, grid, circular
 and explicit layouts (and so on).
