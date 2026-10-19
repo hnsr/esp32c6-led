@@ -6,7 +6,7 @@ use zigbee::zcl::types::{
     TypeId, Uint16, ZclBitmap8, ZclBitmap16, ZclEnum8,
 };
 use zigbee::zdo::{ClusterReply, ClusterRequest, ClusterRequestHandler};
-use crate::zigbee::lamp::{ColorMode as LampColorMode, WhiteCapability};
+use crate::zigbee::lamp::{LampMode, WhiteCapability};
 use crate::zigbee::lamp::SharedLampState;
 
 #[derive(Clone, Copy, Debug)]
@@ -118,9 +118,13 @@ impl ColorControlServer {
     }
 
     fn color_mode(&self) -> ColorMode {
-        match self.lamp.get().color_mode {
-            LampColorMode::Xy => ColorMode::Xy,
-            LampColorMode::Temperature => ColorMode::Temperature
+        match self.lamp.get().mode {
+            LampMode::ColorXy => ColorMode::Xy,
+            LampMode::WhiteTemperature => ColorMode::Temperature,
+            // fixme: a lamp that doesn't have WhiteRange capability should never have a color
+            //        cluster so this should be unreachable code; how can we deal with this more
+            //        elegantly? Should at least log a warning
+            LampMode::WhiteFixed => ColorMode::Temperature,
         }
     }
 }
@@ -279,7 +283,7 @@ impl ClusterServer for ColorControlServer {
                 self.lamp.update(|mut state| {
                     state.x = x;
                     state.y = y;
-                    state.color_mode = LampColorMode::Xy;
+                    state.mode = LampMode::ColorXy;
                     state
                 });
 
@@ -312,7 +316,7 @@ impl ClusterServer for ColorControlServer {
 
                 self.lamp.update(|mut state| {
                     state.temperature = mireds;
-                    state.color_mode = LampColorMode::Temperature;
+                    state.mode = LampMode::WhiteTemperature;
                     state
                 });
 

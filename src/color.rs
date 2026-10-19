@@ -6,7 +6,14 @@ pub struct Rgbw {
     pub white: f32,
 }
 
-pub fn convert_xy_to_rgbw(x: f32, y: f32) -> Option<Rgbw> {
+#[derive(Copy, Clone)]
+pub struct Rgb {
+    pub red: f32,
+    pub green: f32,
+    pub blue: f32,
+}
+
+pub fn convert_xy_to_rgb(x: f32, y: f32) -> Option<Rgb> {
 
     // Avoid division by zero and a negative XYZ Z component, passing this check doesn't guarantee
     // the color fits our RGB gamut
@@ -37,11 +44,10 @@ pub fn convert_xy_to_rgbw(x: f32, y: f32) -> Option<Rgbw> {
         return None;
     }
 
-    Some(Rgbw {
+    Some(Rgb {
         red: red / peak,
         green: green / peak,
-        blue: blue / peak,
-        white: 0.0,
+        blue: blue / peak
     })
 }
 

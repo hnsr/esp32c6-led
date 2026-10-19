@@ -9,15 +9,16 @@ const XY_SRGB_WHITE_Y: u16 = 0x5439;
 const TEMPERATURE_MIREDS_2700K: u16 = 370; // Warm
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ColorMode {
-    Xy,
-    Temperature
+pub enum LampMode {
+    ColorXy,
+    WhiteTemperature,
+    WhiteFixed
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LampState {
     pub on: bool,
-    pub color_mode: ColorMode,
+    pub mode: LampMode,
 
     pub(super) level: u8,
 
@@ -47,17 +48,24 @@ impl LampState {
             }
         };
 
-        let color_mode = if capabilities.supports_xy {
-            ColorMode::Xy
+        let mode = if capabilities.supports_xy {
+            LampMode::ColorXy
         } else {
-            ColorMode::Temperature
+            match capabilities.supports_white {
+                // fixme: a lamp that does not support_xy but also no whites should not exist, how
+                //        can we represent that more sensibly? Maybe just panic here and validate
+                //        in config?
+                WhiteCapability::None => LampMode::ColorXy,
+                WhiteCapability::Fixed { .. } => LampMode::WhiteFixed,
+                WhiteCapability::Range { .. } => LampMode::WhiteTemperature
+            }
         };
 
         Self {
             capabilities,
             on: true,
             level: u8::MAX / 2,
-            color_mode,
+            mode,
             x: XY_SRGB_WHITE_X,
             y: XY_SRGB_WHITE_Y,
             temperature,

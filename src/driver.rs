@@ -1,10 +1,11 @@
-use crate::color::Rgbw;
+use crate::color::Rgb;
 use crate::math::unit_f32_to_u8;
 use esp_hal::Blocking;
 use esp_hal::gpio::Level;
 use esp_hal::peripherals::{Peripherals, GPIO8, RMT};
 use esp_hal::rmt::{Channel, PulseCode, Rmt, Tx, TxChannelConfig, TxChannelCreator};
 use esp_hal::time::Rate;
+use crate::hw::{DiodeLayout, HardwareConfig};
 
 const MAX_LEDS: usize = 100;
 
@@ -13,7 +14,22 @@ pub trait Driver {
 
     fn begin_frame(&mut self) {}
 
-    fn write_led(&mut self, index: usize, color: Rgbw);
+    /// When writing colors we use the final RGB value with effect modulation and lamp level baked
+    /// in
+    fn write_color(&mut self, index: usize, color: Rgb);
+
+    /// When writing a temperature, we use a normalized (0.0 to 1.0) value and intensity is passed
+    /// separately
+    fn write_temperature(
+        &mut self,
+        index: usize,
+        temperature: f32,
+        intensity: f32,
+    );
+
+    /// Fixed white appearance, only intensity is provided for dimming.
+    fn write_intensity(&mut self, index: usize, intensity: f32);
+
 
     fn end_frame(&mut self) {}
 
@@ -23,20 +39,21 @@ pub trait Driver {
 // todo: Move to submodule
 // todo: support dynamic GPIO
 // todo: implement correct timings for the various chips
-// todo: allocate pulsecode buffer on the heap based on leds?
+// todo: allocate pulsecode buffer on the heap based on Hardwareconfig?
 
 pub struct AddressableLedRmtDriver<'a> {
     buffer: [PulseCode; MAX_LEDS * 32 + 1],
     // Needs to be an Option, because we need to move the Channel value out while transmmitting.
     channel: Option<Channel<'a, Blocking, Tx>>,
     max_index: usize,
+    hardware_config: &'a HardwareConfig
 }
 
 const SK6812_ZERO: PulseCode = PulseCode::new(Level::High, 24, Level::Low, 76);
 const SK6812_ONE: PulseCode = PulseCode::new(Level::High, 48, Level::Low, 52);
 
 impl<'a> AddressableLedRmtDriver<'a> {
-    pub fn new(rmt: RMT<'a>, gpio: GPIO8<'a>) -> Self {
+    pub fn new(hardware_config: &'a HardwareConfig, rmt: RMT<'a>, gpio: GPIO8<'a>) -> Self {
         // The integrated WS2812B-compatible RGB LED is connected to GPIO 8. At an
         // 80 MHz RMT clock, one tick is 12.5 ns; each encoded bit totals 100 ticks.
         let rmt = Rmt::new(rmt, Rate::from_mhz(80)).unwrap();
@@ -62,25 +79,75 @@ impl<'a> AddressableLedRmtDriver<'a> {
             buffer: [PulseCode::end_marker(); MAX_LEDS * 32 + 1],
             channel: Some(channel),
             max_index: 0,
+            hardware_config
         }
     }
 }
 
 impl Driver for AddressableLedRmtDriver<'_> {
-    fn write_led(&mut self, index: usize, color: Rgbw) {
-        // Write single color to buffer.
-
+    fn write_color(&mut self, index: usize, color: Rgb) {
+        // Write given RGB color into internal pulse code buffer for given pixel index, taking into
+        // account the diode layout
         assert!(index < MAX_LEDS);
 
-        let slice = &mut self.buffer[index * 32..(index + 1) * 32];
-        let pulses = get_pulsecodes_for_color(
-            unit_f32_to_u8(color.red),
-            unit_f32_to_u8(color.green),
-            unit_f32_to_u8(color.blue),
-            unit_f32_to_u8(color.white),
-        );
-        slice.copy_from_slice(&pulses);
-        self.max_index = index;
+        match self.hardware_config.diodes {
+            DiodeLayout::Rgb { .. } => {
+                let channels = [
+                    unit_f32_to_u8(color.green),
+                    unit_f32_to_u8(color.red),
+                    unit_f32_to_u8(color.blue),
+                ];
+                let start = index * 24;
+                let slice = &mut self.buffer[start..start + 24];
+                encode_channels(&channels, slice);
+                self.max_index = index;
+            }
+            DiodeLayout::Rgbw { .. } => {
+                let channels = [
+                    unit_f32_to_u8(color.green),
+                    unit_f32_to_u8(color.red),
+                    unit_f32_to_u8(color.blue),
+                    0,
+                ];
+                let start = index * 32;
+                let slice = &mut self.buffer[start..start + 32];
+                encode_channels(&channels, slice);
+                self.max_index = index;
+            }
+            DiodeLayout::RgbCct { .. } => {
+                let channels = [
+                    unit_f32_to_u8(color.green),
+                    unit_f32_to_u8(color.red),
+                    unit_f32_to_u8(color.blue),
+                    0,
+                    0,
+                ];
+                let start = index * 40;
+                let slice = &mut self.buffer[start..start + 40];
+                encode_channels(&channels, slice);
+                self.max_index = index;
+            }
+
+            // We don't support these layouts, just do nothing I guess?
+            DiodeLayout::White { .. } |
+            DiodeLayout::WhiteCct { .. } => {
+                return
+            }
+        }
+    }
+
+    fn write_temperature(&mut self, _index: usize, _temperature: f32, _intensity: f32) {
+        // todo: look at HardwareConfig to determine:
+        //   - Write to physical CCT diodes
+        //   - Write to single white diode + RGB nudging
+        //   - Emulate solely using RGB diodes
+        todo!()
+    }
+
+    fn write_intensity(&mut self, _index: usize, _intensity: f32) {
+        // todo: just write the intensity to diodes, but depending on diode layout there
+        //       are options on how to do this
+        todo!()
     }
 
     fn end_frame(&mut self) {
@@ -93,7 +160,9 @@ impl Driver for AddressableLedRmtDriver<'_> {
         let channel = channel
             .transmit(&self.buffer[..end_marker_index + 1])
             .unwrap()
-            // fixme: this blocks the cooperative scheduler and delays handling of zigbee requests
+            // fixme: this blocks the cooperative scheduler and delays handling of zigbee requests,
+            //        note that this is at the protocol level, not MAC. Frame acks happen through
+            //        interrupts and should be fine.
             .wait()
             .unwrap();
         self.channel = Some(channel);
@@ -102,20 +171,28 @@ impl Driver for AddressableLedRmtDriver<'_> {
     }
 }
 
-fn get_pulsecodes_for_color(red: u8, green: u8, blue: u8, white: u8) -> [PulseCode; 32] {
-    let color =
-        ((green as u32) << 24) | ((red as u32) << 16) | ((blue as u32) << 8) | (white as u32);
+// Encode given channels (u8) into pulsecode buffer
+fn encode_channels(channels: &[u8], output: &mut [PulseCode]) {
 
-    let mut pulses = [PulseCode::end_marker(); 32];
+    // Ensure output is big enough to write the given number of channels
+    assert_eq!(output.len(), channels.len() * 8);
 
-    for (bit, pulse) in pulses.iter_mut().enumerate() {
-        let mask = 1 << (31 - bit);
-        *pulse = if color & mask == 0 {
-            SK6812_ZERO
-        } else {
-            SK6812_ONE
-        };
+    // Using zip to iterate over each pair of channel byte and output buffer pulse slots
+    for (&byte, pulses) in channels.iter().zip(output.chunks_exact_mut(8)) {
+
+        // Iterate over each pulse slot and enumerate into `bit`, so we can use it to extract
+        // channel bits
+        for (bit, pulse) in pulses.iter_mut().enumerate() {
+            // We must send the most significant bit first. We use `bit` to construct the right
+            // mask and apply it to `byte` to check if it's set, and write the correct pulse code
+            // pattern into the buffer slot.
+            let mask = 0x80_u8 >> bit;
+
+            *pulse = if byte & mask == 0 {
+                SK6812_ZERO
+            } else {
+                SK6812_ONE
+            };
+        }
     }
-
-    pulses
 }

@@ -80,7 +80,7 @@ async fn main(spawner: Spawner) -> ! {
 
     // fixme: pick driver based on config
     // fixme: make GPIO8 variable depending on LED HW config
-    let mut driver = AddressableLedRmtDriver::new(peripherals.RMT, peripherals.GPIO8);
+    let mut driver = AddressableLedRmtDriver::new(&config, peripherals.RMT, peripherals.GPIO8);
     let mut ctx = RenderContext::new(&rng, config.led_count);
 
     let lamp_capabilities = LampCapabilities::from_hardware(&config);

@@ -90,7 +90,7 @@ The general flow is:
 
 - HardwareConfig determines LampCapabilities
 - LampState is constrained by LampCapabilities
-- LampState + LampCapabilities influence Zigbee device type and cluster options/capabilities
+- LampState + LampCapabilities determine Zigbee device type and cluster options/capabilities
 - Zigbee controls LampState
 - LampState sets RenderContext 'base pixel value' / 'level'
 - Render logic applies effects using 'base pixel value' / 'level', and provides the resulting value for each
@@ -98,21 +98,44 @@ The general flow is:
 - Driver sends resulting pixel values to hardware
 
 ### Layouts, effects
+
 Driving the LED strip is implemented as a kind of graphics pipeline with two main pieces which
 can have different implementations:
 
 - Layout: determines where each LED is physically located in space (i.e. vertex shader)
-- Effect: determines the color of a specific LED (i.e. pixel shader)
+  - Examples: linear, grid, circular 
+- Effect: determines the color of a specific LED (i.e. pixel shader), optionally using the layout
+  - Examples: static color (ignores layout), pulsating color (might use layout, needs elapsed time), rainbow, etc. 
 
-For determining the layout, different implementations exist for linear, grid, circular
-and explicit layouts (and so on).
-
-For effects, you might have a solid color, a pulsating color, or some effect that
-combines multiple colors and so on.
-
-Layouts and effects share a common trait but have their own specific configuration.
-
-The renderer is responsible for applying the configured layout + effect and actually
-updating the physical LED color.
+The renderer is responsible for applying the layout and effect, and invoking the driver to actually update the
+physical LEDs.
 
 A global render context holds common state (like elapsed time), utilites (rng)
+
+### Modes
+
+There are three modes represented in LampState and LampCapabilities:
+
+- ColorXy: color specified by XY values (might change to ColorHsv at some point)
+- WhiteTemperature: white with specified temperature
+- WhiteFixed: white, fixed temperature
+
+We store the raw XY/mireds values, since this is what Zigbee works with. RGB/kelvin would introduce lossy conversion
+and the Zigbee implementation requires us to store them losslessly so they remain available for attribute reads and
+other functionality.
+
+LampState will always be in a single active mode (LampState.mode).
+
+The LampState values get set on the RenderContext in a more convenient format for the
+rendering pipeline to work with, and to avoid having to do a conversion for every 'pixel':
+
+- In ColorXy mode, the render context stores color in RGB, along with level
+- In WhiteTemperature mode, the render context stores current temperature in a range of 0 to 1 (from coldest to
+  warmest), along with level
+- In WhiteFixed mode, only level is stored
+
+Effects implement get_color, get_temperature, get_level and get called depending on the mode.
+
+The render loop passes the resulting value to the driver into similar functions (write_color, write_temperature,
+write_level). The driver consults HardwareConfig to determine how to write the actual value (i.e. emulation modes,
+temperature range).
