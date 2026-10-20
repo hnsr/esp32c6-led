@@ -42,10 +42,15 @@ pub trait Driver {
 // todo: allocate pulsecode buffer on the heap based on Hardwareconfig?
 
 pub struct AddressableLedRmtDriver<'a> {
-    buffer: [PulseCode; MAX_LEDS * 32 + 1],
-    // Needs to be an Option, because we need to move the Channel value out while transmmitting.
+    // fixme: dynamically allocate buffer based on actual channels and pixel count
+    buffer: [PulseCode; MAX_LEDS * 40 + 1],
+
+    // Needs to be an Option, because we need to move the Channel value out while transmitting.
     channel: Option<Channel<'a, Blocking, Tx>>,
-    max_index: usize,
+
+    // Keep track how far into the buffer we wrote pulses, so we can write the end marker.
+    used_pulses: usize,
+
     hardware_config: &'a HardwareConfig
 }
 
@@ -76,11 +81,22 @@ impl<'a> AddressableLedRmtDriver<'a> {
             .with_pin(gpio);
 
         Self {
-            buffer: [PulseCode::end_marker(); MAX_LEDS * 32 + 1],
+            buffer: [PulseCode::end_marker(); MAX_LEDS * 40 + 1],
             channel: Some(channel),
-            max_index: 0,
+            used_pulses: 0,
             hardware_config
         }
+    }
+
+    fn write_channels(&mut self, index: usize, channels: &[u8]) {
+        let pulses_per_pixel = channels.len() * 8;
+        let start = pulses_per_pixel * index;
+        let end = start + pulses_per_pixel;
+        assert!(end < self.buffer.len());
+
+        encode_channels(&channels, &mut self.buffer[start..end]);
+
+        self.used_pulses = self.used_pulses.max(end);
     }
 }
 
@@ -90,42 +106,19 @@ impl Driver for AddressableLedRmtDriver<'_> {
         // account the diode layout
         assert!(index < MAX_LEDS);
 
+        let red = unit_f32_to_u8(color.red);
+        let green = unit_f32_to_u8(color.green);
+        let blue = unit_f32_to_u8(color.blue);
+
         match self.hardware_config.diodes {
             DiodeLayout::Rgb { .. } => {
-                let channels = [
-                    unit_f32_to_u8(color.green),
-                    unit_f32_to_u8(color.red),
-                    unit_f32_to_u8(color.blue),
-                ];
-                let start = index * 24;
-                let slice = &mut self.buffer[start..start + 24];
-                encode_channels(&channels, slice);
-                self.max_index = index;
+                self.write_channels(index, &[ green, red, blue ]);
             }
             DiodeLayout::Rgbw { .. } => {
-                let channels = [
-                    unit_f32_to_u8(color.green),
-                    unit_f32_to_u8(color.red),
-                    unit_f32_to_u8(color.blue),
-                    0,
-                ];
-                let start = index * 32;
-                let slice = &mut self.buffer[start..start + 32];
-                encode_channels(&channels, slice);
-                self.max_index = index;
+                self.write_channels(index, &[ green, red, blue, 0 ]);
             }
             DiodeLayout::RgbCct { .. } => {
-                let channels = [
-                    unit_f32_to_u8(color.green),
-                    unit_f32_to_u8(color.red),
-                    unit_f32_to_u8(color.blue),
-                    0,
-                    0,
-                ];
-                let start = index * 40;
-                let slice = &mut self.buffer[start..start + 40];
-                encode_channels(&channels, slice);
-                self.max_index = index;
+                self.write_channels(index, &[ green, red, blue, 0, 0 ]);
             }
 
             // We don't support these layouts, just do nothing I guess?
@@ -152,7 +145,7 @@ impl Driver for AddressableLedRmtDriver<'_> {
 
     fn end_frame(&mut self) {
         // Write end-marker to buffer and transmit using RMT channel.
-        let end_marker_index = (self.max_index + 1) * 32;
+        let end_marker_index = self.used_pulses;
         self.buffer[end_marker_index] = PulseCode::end_marker();
 
         // We have to take() self.channel here so it can be moved into transmit(), after which we moved it back in
@@ -167,7 +160,7 @@ impl Driver for AddressableLedRmtDriver<'_> {
             .unwrap();
         self.channel = Some(channel);
 
-        self.max_index = 0;
+        self.used_pulses = 0;
     }
 }
 
