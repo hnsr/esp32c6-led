@@ -94,7 +94,7 @@ impl<'a> AddressableLedRmtDriver<'a> {
         let end = start + pulses_per_pixel;
         assert!(end < self.buffer.len());
 
-        encode_channels(&channels, &mut self.buffer[start..end]);
+        encode_channels(channels, &mut self.buffer[start..end]);
 
         self.used_pulses = self.used_pulses.max(end);
     }
