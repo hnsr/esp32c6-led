@@ -54,8 +54,11 @@ async fn main(spawner: Spawner) -> ! {
     // Routes log messages from libraries to the serial output.
     esp_println::logger::init_logger_from_env();
 
-    // Reserve 24 KiB of RAM and register it with the global allocator.
-    esp_alloc::heap_allocator!(size: 24 * 1024);
+    // Reserve 64 KiB of RAM and register it with the global allocator.
+    // fixme: should dump heap stats with esp_alloc::HEAP.stats() (afrer driver construction and
+    //        zigbee init).
+    // fixme: this should probably also follow hardware config?
+    esp_alloc::heap_allocator!(size: 64 * 1024);
 
     let rng = Rng::new();
 

@@ -1,4 +1,5 @@
 #![no_std]
+extern crate alloc;
 
 pub mod color;
 pub mod driver;

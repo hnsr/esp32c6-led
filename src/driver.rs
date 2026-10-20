@@ -1,3 +1,4 @@
+use alloc::{boxed::Box, vec};
 use crate::color::Rgb;
 use crate::math::unit_f32_to_u8;
 use esp_hal::Blocking;
@@ -6,8 +7,6 @@ use esp_hal::peripherals::{Peripherals, GPIO8, RMT};
 use esp_hal::rmt::{Channel, PulseCode, Rmt, Tx, TxChannelConfig, TxChannelCreator};
 use esp_hal::time::Rate;
 use crate::hw::{DiodeLayout, HardwareConfig};
-
-const MAX_LEDS: usize = 100;
 
 pub trait Driver {
     fn setup(&mut self, _peripherals: Peripherals) {}
@@ -30,7 +29,6 @@ pub trait Driver {
     /// Fixed white appearance, only intensity is provided for dimming.
     fn write_intensity(&mut self, index: usize, intensity: f32);
 
-
     fn end_frame(&mut self) {}
 
     fn teardown(&mut self) {}
@@ -39,17 +37,16 @@ pub trait Driver {
 // todo: Move to submodule
 // todo: support dynamic GPIO
 // todo: implement correct timings for the various chips
-// todo: allocate pulsecode buffer on the heap based on Hardwareconfig?
-
 pub struct AddressableLedRmtDriver<'a> {
-    // fixme: dynamically allocate buffer based on actual channels and pixel count
-    buffer: [PulseCode; MAX_LEDS * 40 + 1],
+    buffer: Box<[PulseCode]>,
 
     // Needs to be an Option, because we need to move the Channel value out while transmitting.
     channel: Option<Channel<'a, Blocking, Tx>>,
 
     // Keep track how far into the buffer we wrote pulses, so we can write the end marker.
     used_pulses: usize,
+
+    channels_per_pixel: usize,
 
     hardware_config: &'a HardwareConfig
 }
@@ -80,10 +77,26 @@ impl<'a> AddressableLedRmtDriver<'a> {
             .unwrap()
             .with_pin(gpio);
 
+        let channels_per_pixel = match hardware_config.diodes {
+            DiodeLayout::White { .. } => 1,
+            DiodeLayout::WhiteCct { .. } => 2,
+            DiodeLayout::Rgb { .. } => 3,
+            DiodeLayout::Rgbw { .. } => 4,
+            DiodeLayout::RgbCct { .. } => 5,
+        };
+
+        // The buffer needs to hold pulses for every LED pixel (= channels * 8, one for every bit),
+        // plus one end-marker pulsecode.
+        let pulse_count = hardware_config.led_count * channels_per_pixel * 8 + 1;
+
+        // Allocate vector, then convert it into fixed-size Box
+        let buffer = vec![PulseCode::end_marker(); pulse_count].into_boxed_slice();
+
         Self {
-            buffer: [PulseCode::end_marker(); MAX_LEDS * 40 + 1],
+            buffer,
             channel: Some(channel),
             used_pulses: 0,
+            channels_per_pixel,
             hardware_config
         }
     }
@@ -92,7 +105,10 @@ impl<'a> AddressableLedRmtDriver<'a> {
         let pulses_per_pixel = channels.len() * 8;
         let start = pulses_per_pixel * index;
         let end = start + pulses_per_pixel;
+
         assert!(end < self.buffer.len());
+        assert_eq!(channels.len(), self.channels_per_pixel);
+        assert!(index < self.hardware_config.led_count);
 
         encode_channels(channels, &mut self.buffer[start..end]);
 
@@ -104,7 +120,7 @@ impl Driver for AddressableLedRmtDriver<'_> {
     fn write_color(&mut self, index: usize, color: Rgb) {
         // Write given RGB color into internal pulse code buffer for given pixel index, taking into
         // account the diode layout
-        assert!(index < MAX_LEDS);
+        assert!(index < self.hardware_config.led_count);
 
         let red = unit_f32_to_u8(color.red);
         let green = unit_f32_to_u8(color.green);
@@ -120,11 +136,11 @@ impl Driver for AddressableLedRmtDriver<'_> {
             DiodeLayout::RgbCct { .. } => {
                 self.write_channels(index, &[ green, red, blue, 0, 0 ]);
             }
-
-            // We don't support these layouts, just do nothing I guess?
             DiodeLayout::White { .. } |
             DiodeLayout::WhiteCct { .. } => {
-                return
+                unreachable!(
+                    "write_color requires RGB diodes, but provided hardware config has none"
+                );
             }
         }
     }
