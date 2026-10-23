@@ -24,25 +24,25 @@ pub enum LedChip {
 #[derive(Clone, Copy, Debug)]
 pub enum DiodeLayout {
     White {
-        physical_temperature_kelvin: u16,
+        physical_temperature_mireds: u16,
     },
     WhiteCct {
-        physical_temperature_kelvin: TemperatureRange
+        physical_temperature_mireds: TemperatureRange
     },
     Rgb {
-        emulated_temperature_kelvin: Option<TemperatureRange>,
+        emulated_temperature_mireds: Option<TemperatureRange>,
     },
     Rgbw {
-        physical_temperature_kelvin: u16,
-        emulated_temperature_kelvin: Option<TemperatureRange>,
+        physical_temperature_mireds: u16,
+        emulated_temperature_mireds: Option<TemperatureRange>,
     },
     RgbCct {
-        physical_temperature_kelvin: TemperatureRange
+        physical_temperature_mireds: TemperatureRange
     },
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct TemperatureRange {
-    pub min_kelvin: u16,
-    pub max_kelvin: u16,
+    pub min_mireds: u16,
+    pub max_mireds: u16,
 }

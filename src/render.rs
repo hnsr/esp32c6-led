@@ -36,11 +36,17 @@ pub fn render(
     if let Some(lamp) = lamp {
 
         let lamp = lamp.get();
+
+        // fixme: we could just skip rendering if lamp is off, but we need (depending on driver?)
+        //        output at least one frame to turn off the LEDs (depending on HardWare/Driver, so
+        //        render loop should not really need to know about this and we should abstract that
+        //        away somehow)
+        let level = if lamp.on { lamp.get_level() } else { 0.0 };
+
         match lamp.mode {
             LampMode::ColorXy => {
-                // fixme: how to handle None here? We could fallback to hardware default color?
-                let level = lamp.get_level();
                 let rgb = color::convert_xy_to_rgb(lamp.get_x(), lamp.get_y())
+                    // fixme: how to handle None here? We could fallback to hardware default color?
                     .unwrap_or(Rgb {
                         red: 0.0,
                         green: 0.0,
@@ -58,8 +64,28 @@ pub fn render(
                     driver.write_color(index, color);
                 }
             }
-            LampMode::WhiteTemperature => {}
-            LampMode::WhiteFixed => {}
+            LampMode::WhiteTemperature => {
+                let temperature = lamp.get_temperature_normalized();
+
+                for index in 0..ctx.led_count {
+                    let coord = layout.get_coord(index);
+                    let sample = effect.get_temperature(ctx, temperature, index, coord);
+
+                    driver.write_temperature(
+                        index,
+                        sample.temperature,
+                        sample.intensity * level
+                    );
+                }
+            }
+            LampMode::WhiteFixed => {
+                for index in 0..ctx.led_count {
+                    let coord = layout.get_coord(index);
+                    let intensity = effect.get_intensity(ctx, index, coord);
+
+                    driver.write_intensity(index, intensity * level);
+                }
+            }
         }
     }
 

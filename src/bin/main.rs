@@ -72,10 +72,10 @@ async fn main(spawner: Spawner) -> ! {
             chip: LedChip::Sk6812,
         },
         diodes: DiodeLayout::Rgbw {
-            physical_temperature_kelvin: 2700,
-            emulated_temperature_kelvin: Some(TemperatureRange {
-                min_kelvin: 2200,
-                max_kelvin: 6500,
+            physical_temperature_mireds: 370, // ~2700K
+            emulated_temperature_mireds: Some(TemperatureRange {
+                min_mireds: 154, // ~6500K
+                max_mireds: 455, // ~2200K
             }),
         },
         led_count: 10,

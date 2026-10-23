@@ -84,8 +84,28 @@ impl LampState {
         f32::from(self.y) / 65_536.0
     }
 
-    pub fn get_temperature(&self) -> f32 {
+    /// Returns current lamp temperature in mireds
+    pub fn get_temperature_mireds(&self) -> f32 {
         f32::from(self.temperature)
+    }
+
+    /// Returns current lamp temperature, normalized (0 for coldest, 1 for warmest)
+    pub fn get_temperature_normalized(&self) -> f32 {
+        match self.capabilities.supports_white {
+            WhiteCapability::None =>
+                unreachable!("temperature not supported"),
+            WhiteCapability::Fixed { .. } =>
+                unreachable!("temperature not supported"),
+            WhiteCapability::Range {
+                temperature_min_mireds,
+                temperature_max_mireds
+            } => {
+                let mireds = f32::from(self.temperature);
+                let min = f32::from(temperature_min_mireds);
+                let max = f32::from(temperature_max_mireds);
+                (mireds - min) / (max - min)
+            }
+        }
     }
 }
 
@@ -125,21 +145,21 @@ impl LampCapabilities {
 
         let temperature_range = match hw.diodes {
             DiodeLayout::White {
-                physical_temperature_kelvin: physical_temperature,
+                physical_temperature_mireds: physical_temperature,
             } => {
                 // One white emitter so only one native temperature
                 Some(TemperatureRange {
-                    min_kelvin: physical_temperature,
-                    max_kelvin: physical_temperature,
+                    min_mireds: physical_temperature,
+                    max_mireds: physical_temperature,
                 })
             }
 
             DiodeLayout::WhiteCct {
-                physical_temperature_kelvin: physical_temperature,
+                physical_temperature_mireds: physical_temperature,
             } => Some(physical_temperature),
 
             DiodeLayout::Rgb {
-                emulated_temperature_kelvin: emulated_temperature,
+                emulated_temperature_mireds: emulated_temperature,
             } => {
                 // RGB has no native white temperature so this is either the configured emulation
                 // range or None
@@ -147,12 +167,12 @@ impl LampCapabilities {
             }
 
             DiodeLayout::Rgbw {
-                physical_temperature_kelvin: physical_temperature,
-                emulated_temperature_kelvin: emulated_temperature,
+                physical_temperature_mireds: physical_temperature,
+                emulated_temperature_mireds: emulated_temperature,
             } => {
                 let native_range = TemperatureRange {
-                    min_kelvin: physical_temperature,
-                    max_kelvin: physical_temperature,
+                    min_mireds: physical_temperature,
+                    max_mireds: physical_temperature,
                 };
 
                 // Use the emulation range when present, otherwise pass on native temperature as a
@@ -161,18 +181,18 @@ impl LampCapabilities {
             }
 
             DiodeLayout::RgbCct {
-                physical_temperature_kelvin: physical_temperature,
+                physical_temperature_mireds: physical_temperature,
             } => Some(physical_temperature),
         };
 
         let white_capability =
             match temperature_range {
                 Some(range) => {
-                    assert!(range.min_kelvin > 0);
-                    assert!(range.min_kelvin <= range.max_kelvin);
+                    assert!(range.min_mireds > 0);
+                    assert!(range.min_mireds <= range.max_mireds);
 
-                    let min = kelvin_to_mireds(range.max_kelvin);
-                    let max = kelvin_to_mireds(range.min_kelvin);
+                    let min = range.min_mireds;
+                    let max = range.max_mireds;
                     if min < max {
                         WhiteCapability::Range {
                             temperature_min_mireds: min,
@@ -191,11 +211,4 @@ impl LampCapabilities {
             supports_white: white_capability
         }
     }
-}
-
-// fixme: move to color.rs?
-fn kelvin_to_mireds(kelvin: u16) -> u16 {
-    let kelvin = u32::from(kelvin);
-    let mireds = (1_000_000 + kelvin / 2) / kelvin;
-    u16::try_from(mireds).expect("temperature exceeds u16 mired range")
 }

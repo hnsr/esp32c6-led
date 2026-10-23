@@ -6,7 +6,7 @@ use esp_hal::gpio::Level;
 use esp_hal::peripherals::{Peripherals, GPIO8, RMT};
 use esp_hal::rmt::{Channel, PulseCode, Rmt, Tx, TxChannelConfig, TxChannelCreator};
 use esp_hal::time::Rate;
-use crate::hw::{DiodeLayout, HardwareConfig};
+use crate::hw::{DiodeLayout, HardwareConfig, TemperatureRange};
 
 pub trait Driver {
     fn setup(&mut self, _peripherals: Peripherals) {}
@@ -138,19 +138,47 @@ impl Driver for AddressableLedRmtDriver<'_> {
             }
             DiodeLayout::White { .. } |
             DiodeLayout::WhiteCct { .. } => {
-                unreachable!(
-                    "write_color requires RGB diodes, but provided hardware config has none"
-                );
+                unreachable!("write_color requires RGB diodes");
             }
         }
     }
 
-    fn write_temperature(&mut self, _index: usize, _temperature: f32, _intensity: f32) {
-        // todo: look at HardwareConfig to determine:
-        //   - Write to physical CCT diodes
-        //   - Write to single white diode + RGB nudging
-        //   - Emulate solely using RGB diodes
-        todo!()
+    fn write_temperature(&mut self, index: usize, temperature: f32, intensity: f32) {
+
+        let t = temperature.clamp(0.0, 1.0);
+        let intensity = intensity.clamp(0.0, 1.0);
+
+        // fixme: physical diode intensity may not scale linearly and so this should be considered
+        //        an approximation
+        let cold = unit_f32_to_u8((1.0 - t) * intensity);
+        let warm = unit_f32_to_u8(t * intensity);
+
+        match self.hardware_config.diodes {
+            DiodeLayout::Rgb { emulated_temperature_mireds: emulated_range } => {
+                match emulated_range {
+                    None => unreachable!("write_temperature with RGB requires emulation"),
+                    Some(range) => {
+                        // todo: map configured min/max to RGB values, then use given
+                        //       normalized temperature to lerp between the two, then apply
+                        //       intensity, then  write channels.
+                        // todo: we should store mapped min/max RGB values once, and store it on
+                        //       the HardwareConfig I guess?
+                    }
+                }
+            }
+            DiodeLayout::Rgbw { .. } => {
+                // todo: check if emulation is allowed
+            }
+            DiodeLayout::RgbCct { .. } => {
+                self.write_channels(index, &[0, 0, 0, cold, warm]);
+            }
+            DiodeLayout::White { .. } => {
+                unreachable!("write_temperature requires RGB, RGBW, RGBCCT, or CCT diodes");
+            }
+            DiodeLayout::WhiteCct { .. } => {
+                self.write_channels(index, &[cold, warm]);
+            }
+        }
     }
 
     fn write_intensity(&mut self, _index: usize, _intensity: f32) {
