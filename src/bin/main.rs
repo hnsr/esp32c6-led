@@ -17,7 +17,7 @@ use esp_hal::time::Instant;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
 use esp32c6_led::driver::AddressableLedRmtDriver;
-use esp32c6_led::effect::PulsatingColor;
+use esp32c6_led::effect::{PulsatingColor, StaticColor};
 use esp32c6_led::hw::{DiodeLayout, HardwareConfig, HardwareKind, LedChip, TemperatureRange};
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
@@ -65,7 +65,8 @@ async fn main(spawner: Spawner) -> ! {
     println!("Instantiating layout, effect and driver");
 
     let mut layout = Linear {};
-    let mut effect = PulsatingColor {};
+    //let mut effect = PulsatingColor {};
+    let mut effect = StaticColor {};
 
     let config = HardwareConfig {
         kind: HardwareKind::AddressableStrip {

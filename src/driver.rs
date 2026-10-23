@@ -6,7 +6,7 @@ use esp_hal::gpio::Level;
 use esp_hal::peripherals::{Peripherals, GPIO8, RMT};
 use esp_hal::rmt::{Channel, PulseCode, Rmt, Tx, TxChannelConfig, TxChannelCreator};
 use esp_hal::time::Rate;
-use crate::hw::{DiodeLayout, HardwareConfig, TemperatureRange};
+use crate::hw::{DiodeLayout, HardwareConfig};
 
 pub trait Driver {
     fn setup(&mut self, _peripherals: Peripherals) {}
@@ -154,20 +154,30 @@ impl Driver for AddressableLedRmtDriver<'_> {
         let warm = unit_f32_to_u8(t * intensity);
 
         match self.hardware_config.diodes {
-            DiodeLayout::Rgb { emulated_temperature_mireds: emulated_range } => {
-                match emulated_range {
-                    None => unreachable!("write_temperature with RGB requires emulation"),
-                    Some(range) => {
-                        // todo: map configured min/max to RGB values, then use given
-                        //       normalized temperature to lerp between the two, then apply
-                        //       intensity, then  write channels.
-                        // todo: we should store mapped min/max RGB values once, and store it on
-                        //       the HardwareConfig I guess?
-                    }
-                }
+            DiodeLayout::Rgb {
+                emulated_temperature_mireds: emulated_range,
             }
-            DiodeLayout::Rgbw { .. } => {
-                // todo: check if emulation is allowed
+            | DiodeLayout::Rgbw {
+                emulated_temperature_mireds: emulated_range,
+                ..
+            } => {
+                let range = emulated_range
+                    .expect("temperature rendering requires RGB emulation");
+
+                let min = f32::from(range.min_mireds);
+                let max = f32::from(range.max_mireds);
+
+                // Get absolute mireds from normalized value
+                let mireds = min + t * (max - min);
+
+                let mut rgb = crate::color::convert_mireds_to_rgb(mireds)
+                    .expect("configured temperature exceeds RGB approximation range");
+
+                rgb.red *= intensity;
+                rgb.green *= intensity;
+                rgb.blue *= intensity;
+
+                self.write_color(index, rgb);
             }
             DiodeLayout::RgbCct { .. } => {
                 self.write_channels(index, &[0, 0, 0, cold, warm]);

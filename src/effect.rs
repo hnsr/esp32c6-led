@@ -38,6 +38,37 @@ pub trait Effect {
 
 // todo: move to separate per-effect modules
 
+pub struct StaticColor {}
+
+impl Effect for StaticColor {
+    fn get_color(
+        &mut self,
+        _ctx: &RenderContext,
+        base_color: Rgb,
+        _index: usize,
+        _coord: Coord
+    ) -> Rgb {
+        base_color
+    }
+
+    fn get_temperature(
+        &mut self,
+        _ctx: &RenderContext,
+        base_temperature: f32,
+        _index: usize,
+        _coord: Coord
+    ) -> TemperatureSample {
+        TemperatureSample {
+            temperature: base_temperature,
+            intensity: 1.0,
+        }
+    }
+
+    fn get_intensity(&mut self, _ctx: &RenderContext, _index: usize, _coord: Coord) -> f32 {
+        1.0
+    }
+}
+
 pub struct RandomColor {}
 
 impl Effect for RandomColor {
