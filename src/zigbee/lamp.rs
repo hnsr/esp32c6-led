@@ -64,7 +64,7 @@ impl LampState {
         Self {
             capabilities,
             on: true,
-            level: u8::MAX / 2,
+            level: u8::MAX / 16,
             mode,
             x: XY_SRGB_WHITE_X,
             y: XY_SRGB_WHITE_Y,

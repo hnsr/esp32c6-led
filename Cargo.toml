@@ -69,5 +69,5 @@ opt-level     = 's'
 # Load zigbee and related workspace deps from my fork, also explicitly list zigbee-mac, which is a direct dependency
 # in this project, and should probably also come from my fork. Note that after updating the branch you need to run
 # `cargo update -p zigbee -p zigbee-mac`
-zigbee = { git = "https://github.com/hnsr/zigbee-rs.git", branch = "0.1.0-fixes" }
-zigbee-mac = { git = "https://github.com/hnsr/zigbee-rs.git", branch = "0.1.0-fixes" }
+zigbee = { git = "https://github.com/hnsr/zigbee-rs.git", branch = "main-fixes" }
+zigbee-mac = { git = "https://github.com/hnsr/zigbee-rs.git", branch = "main-fixes" }

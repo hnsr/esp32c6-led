@@ -2069,7 +2069,7 @@ dependencies = [
 [[package]]
 name = "zigbee"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
 dependencies = [
  "embedded-hal-async",
  "log",
@@ -2083,7 +2083,7 @@ dependencies = [
 [[package]]
 name = "zigbee-base-device-behavior"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
 dependencies = [
  "embedded-hal-async",
  "log",
@@ -2097,7 +2097,7 @@ dependencies = [
 [[package]]
 name = "zigbee-cluster-library"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
 dependencies = [
  "byte",
  "embedded-hal-async",
@@ -2111,7 +2111,7 @@ dependencies = [
 [[package]]
 name = "zigbee-core"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
 dependencies = [
  "aead 0.5.2",
  "aes",
@@ -2133,7 +2133,7 @@ dependencies = [
 [[package]]
 name = "zigbee-mac"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
 dependencies = [
  "byte",
  "embassy-futures",
@@ -2154,18 +2154,17 @@ dependencies = [
 [[package]]
 name = "zigbee-macros"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
 
 [[package]]
 name = "zigbee-types"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=0.1.0-fixes#df6702215dbafa846f1a6faa96a1286cecaa4e28"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
 dependencies = [
  "atomic-waker",
  "byte",
  "embedded-storage",
  "heapless 0.9.3",
- "itertools",
  "spin",
  "zigbee-macros",
 ]

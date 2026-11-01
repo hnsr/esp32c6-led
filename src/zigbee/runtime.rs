@@ -34,7 +34,7 @@ async fn init_storage(flash: FLASH<'static>) -> ZigbeeFlash {
     let flash = BlockingAsync::new(storage);
 
     // Initialize and return Zigbee's in-memory state and restore saved values
-    zigbee::storage::init_with_flash(flash, ZIGBEE_FLASH_RANGE).await
+    zigbee::storage::FlashStorage::new(flash, ZIGBEE_FLASH_RANGE).await
 }
 
 fn init_radio_mac(ieee802154: IEEE802154<'_>) -> EspMlme<'_> {

@@ -37,6 +37,13 @@ pub trait Driver {
 // todo: Move to submodule
 // todo: support dynamic GPIO
 // todo: implement correct timings for the various chips
+// todo:
+//      Maybe we should send a single frame to turn off all the diodes during driver init. Note
+//      that 'all' here should probably mean more then the configured led_count; during glitching
+//      I've seen it occur that LEDs beyond the configured count get switched on (and then never
+//      get switched off again), this potentially could cause more power to be drawn than expected
+//      and cause even more stability issues.
+
 pub struct AddressableLedRmtDriver<'a> {
     buffer: Box<[PulseCode]>,
 
@@ -157,6 +164,8 @@ impl Driver for AddressableLedRmtDriver<'_> {
             DiodeLayout::Rgb {
                 emulated_temperature_mireds: emulated_range,
             }
+            // fixme: in RGBW we should emulate using W as a base and nudge using RGB diodes, if
+            //        this improves lumen
             | DiodeLayout::Rgbw {
                 emulated_temperature_mireds: emulated_range,
                 ..

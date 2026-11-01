@@ -65,7 +65,7 @@ async fn main(spawner: Spawner) -> ! {
     println!("Instantiating layout, effect and driver");
 
     let mut layout = Linear {};
-    //let mut effect = PulsatingColor {};
+    let mut effect = PulsatingColor {};
     let mut effect = StaticColor {};
 
     let config = HardwareConfig {
@@ -89,6 +89,7 @@ async fn main(spawner: Spawner) -> ! {
 
     let lamp_capabilities = LampCapabilities::from_hardware(&config);
 
+    println!("Starting zigbee");
     let lamp_state = start_zigbee(
         spawner,
         peripherals.IEEE802154,

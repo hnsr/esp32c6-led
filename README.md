@@ -26,15 +26,18 @@ espflash monitor --chip esp32c6 --port /dev/ttyACM0
 # To actually attach to the running firmware without resetting it we can use `picocom`:
 picocom --baud 115200 --flow n --lower-rts --raise-dtr --noreset --imap lfcrlf /dev/ttyACM0
 
-# To erase zigbee storage (i.e. if you need to reset network key/state)
-espflash erase-region --chip esp32c6 0x3f0000 0x4000 # Double check the range with partitions.csv
+# To erase zigbee storage (i.e. if you need to reset network key/state), be sure to check the range with partitions.csv
+espflash erase-region --chip esp32c6 0x3f0000 0x4000
 ```
 
 Prefix with ESP_LOG to build with logging, for example:
 ```shell
-# Log 'warn' level and higher, for our crate and zigbee log 'debug' and higher, but keep zdo at 'info'
+# Log 'info' and higher
+ESP_LOG='info' cargo run --release
+
+# Log 'info' level and higher, for our crate and zigbee log 'debug' and higher, but keep zdo at 'info'
 # to avoid noisy logging
-ESP_LOG='warn,esp32c6_led=debug,zigbee=debug,zigbee_core::zdo=info' cargo run --release
+ESP_LOG='info,esp32c6_led=debug,zigbee=debug,zigbee_core::zdo=info' cargo run --release
 ```
 
 ## TODO
@@ -45,7 +48,7 @@ ESP_LOG='warn,esp32c6_led=debug,zigbee=debug,zigbee_core::zdo=info' cargo run --
 - [ ] Implement Zigbee groups and scenes clusters
 - [ ] Implement Zigbee lamp state storage to flash
 - [ ] Implement Zigbee transition effects (fade in/out)
-- [ ] Implement Zigbee dynamic netweork joining (without hardcoded netwerk PAN)
+- [ ] Implement Zigbee dynamic network joining (without hardcoded netwerk PAN)
 - [ ] Implement button for: rotating effects (short press), reset zigbee association (long press)
 - [ ] Implement more effects, layouts
 
