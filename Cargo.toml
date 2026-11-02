@@ -16,8 +16,10 @@ libm = "0.2"
 
 # Scheduling support and the Embassy integration for the ESP32-C6.
 esp-rtos = { version = "=0.3.0", features = ["esp32c6", "embassy", "log-04"] }
-embassy-executor = "=0.10.0"# Runs async tasks; provides the Spawner type used by async main.
-embassy-time = "=0.5.0" # Async timers, backed by the timer integration above.
+embassy-executor = "=0.10.0"
+embassy-time = "=0.5.0"
+embassy-futures = "0.1.2"
+embassy-sync = "=0.8.0"
 
 # Versions pinned to ensure compatibility with zigbee-rs:
 

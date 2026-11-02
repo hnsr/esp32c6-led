@@ -13,6 +13,7 @@ use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::rng::Rng;
+use esp_hal::gpio;
 use esp_hal::time::Instant;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
@@ -23,6 +24,7 @@ use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
 use esp32c6_led::zigbee::lamp::LampCapabilities;
 use esp32c6_led::zigbee::start_zigbee;
+use esp32c6_led::button::button_task;
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
@@ -50,6 +52,13 @@ async fn main(spawner: Spawner) -> ! {
     let software_interrupts = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
     let timers = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timers.timer0, software_interrupts.software_interrupt0);
+
+    // Setup effect switch / zigbee reset button using internal pull-up on GPIO3
+    let button = gpio::Input::new(
+        peripherals.GPIO3,
+        gpio::InputConfig::default().with_pull(gpio::Pull::Up),
+    );
+    spawner.spawn(button_task(button).unwrap());
 
     // Routes log messages from libraries to the serial output.
     esp_println::logger::init_logger_from_env();

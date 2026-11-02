@@ -10,3 +10,4 @@ pub mod render;
 pub mod zigbee;
 pub mod timing;
 pub mod hw;
+pub mod button;
