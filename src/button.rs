@@ -3,7 +3,6 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use esp_hal::gpio;
-use esp_println::println;
 
 #[derive(Debug)]
 pub enum ButtonEvent {
@@ -28,10 +27,10 @@ pub async fn button_task(mut button: gpio::Input<'static>) {
 
         match outcome {
             Either::First(()) => {
-                println!("Short press");
+                BUTTON_EVENTS.send(ButtonEvent::ShortPress).await;
             }
             Either::Second(()) => {
-                println!("Long press");
+                BUTTON_EVENTS.send(ButtonEvent::LongPress).await;
 
                 // Consume potentially still pending de-press event
                 button_wait_debounced(&mut button, false).await

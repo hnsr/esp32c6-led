@@ -24,7 +24,7 @@ use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
 use esp32c6_led::zigbee::lamp::LampCapabilities;
 use esp32c6_led::zigbee::start_zigbee;
-use esp32c6_led::button::button_task;
+use esp32c6_led::button::{BUTTON_EVENTS, ButtonEvent, button_task};
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
@@ -115,6 +115,17 @@ async fn main(spawner: Spawner) -> ! {
     // let mut timing = LoopTimings::<400>::new("renderer");
 
     loop {
+        // Check button events
+        while let Ok(event) = BUTTON_EVENTS.try_receive() {
+            match event {
+                ButtonEvent::ShortPress => {
+                    println!("Switching effect")
+                }
+                ButtonEvent::LongPress => {
+                    println!("Resetting ZigBee network state")
+                }
+            }
+        }
         // timing.begin();
 
         // fixme: using f32 might not be stable for long uptimes
