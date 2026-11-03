@@ -18,7 +18,7 @@ use esp_hal::time::Instant;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
 use esp32c6_led::driver::AddressableLedRmtDriver;
-use esp32c6_led::effect::{PulsatingColor, StaticColor};
+use esp32c6_led::effect::{Effect, PulsatingColor, RandomColor, StaticColor};
 use esp32c6_led::hw::{DiodeLayout, HardwareConfig, HardwareKind, LedChip, TemperatureRange};
 use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
@@ -67,11 +67,20 @@ async fn main(spawner: Spawner) -> ! {
 
     let rng = Rng::new();
 
-    println!("Instantiating layout, effect and driver");
+    println!("Instantiating layout, effects and driver");
 
     let mut layout = Linear {};
-    let mut effect = PulsatingColor {};
-    let mut effect = StaticColor {};
+    let mut effect_pulsating = PulsatingColor {};
+    let mut effect_random = RandomColor {};
+    let mut effect_static = StaticColor {};
+
+    let effects: [&mut dyn Effect; 3] = [
+        &mut effect_pulsating,
+        &mut effect_random,
+        &mut effect_static,
+    ];
+
+    let mut active_effect: usize = 0;
 
     let config = HardwareConfig {
         kind: HardwareKind::AddressableStrip {
@@ -115,7 +124,8 @@ async fn main(spawner: Spawner) -> ! {
         while let Ok(event) = BUTTON_EVENTS.try_receive() {
             match event {
                 ButtonEvent::ShortPress => {
-                    println!("Switching effect")
+                    active_effect = (active_effect + 1) % effects.len();
+                    println!("Switching to effect {}", active_effect);
                 }
                 ButtonEvent::LongPress => {
                     println!("Resetting ZigBee network state")
@@ -127,7 +137,7 @@ async fn main(spawner: Spawner) -> ! {
         // fixme: using f32 might not be stable for long uptimes
         ctx.time_s = Instant::now().duration_since_epoch().as_micros() as f32 / 1_000_000.0;
 
-        render(&mut ctx, &mut layout, &mut effect, &mut driver, Some(lamp_state));
+        render(&mut ctx, &mut layout, effects[active_effect], &mut driver, Some(lamp_state));
 
         // timing.end_work();
         // if timing.report_if_ready() {
