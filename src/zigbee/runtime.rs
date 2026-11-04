@@ -55,11 +55,6 @@ pub async fn start_zigbee(
     flash: FLASH<'static>,
     lamp_capabilities: LampCapabilities
 ) -> &'static SharedLampState {
-    // fixme: replace fixed network ID with proper reset + join network logic
-    let network_id_text = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/zigbee-network.txt",));
-    let extended_pan_id = u64::from_str_radix(network_id_text.trim(), 16)
-        .expect("zigbee-network.txt must contain a hexadecimal extended PAN ID");
-
     let lamp_state: &SharedLampState =
         LAMP.init(SharedLampState::new(LampState::new(lamp_capabilities)));
 
@@ -71,7 +66,7 @@ pub async fn start_zigbee(
     let handler = build_handler(lamp_state);
     let mac = init_radio_mac(ieee802154);
     let storage = init_storage(flash).await;
-    let stack_config = build_stack_config(extended_pan_id);
+    let stack_config = build_stack_config();
 
     log::info!("Zigbee configuration: extended_PAN={:#018x}, channel={}, capabilities={:#04x}",
         stack_config.network().extended_pan_id.0,

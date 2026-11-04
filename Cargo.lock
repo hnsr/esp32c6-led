@@ -363,6 +363,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "defmt-or-log"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be59789d306cc1a082f53bb7c24c270d7e6078c00b7550a718219a7090156d97"
+dependencies = [
+ "defmt-or-log-macros",
+]
+
+[[package]]
+name = "defmt-or-log-macros"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d675dd299edbb7c8e01d4e9f520a0d8f22a8fe4af812c211c3fad5e9dcf41763"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
 name = "defmt-parser"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2071,8 +2091,9 @@ dependencies = [
 [[package]]
 name = "zigbee"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#ddd6856a66fc1c920269b615d6bcfc59f7ca2c04"
 dependencies = [
+ "defmt-or-log",
  "embedded-hal-async",
  "log",
  "zigbee-base-device-behavior",
@@ -2085,8 +2106,9 @@ dependencies = [
 [[package]]
 name = "zigbee-base-device-behavior"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#ddd6856a66fc1c920269b615d6bcfc59f7ca2c04"
 dependencies = [
+ "defmt-or-log",
  "embedded-hal-async",
  "log",
  "spin",
@@ -2099,7 +2121,7 @@ dependencies = [
 [[package]]
 name = "zigbee-cluster-library"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#ddd6856a66fc1c920269b615d6bcfc59f7ca2c04"
 dependencies = [
  "byte",
  "embedded-hal-async",
@@ -2113,12 +2135,13 @@ dependencies = [
 [[package]]
 name = "zigbee-core"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#ddd6856a66fc1c920269b615d6bcfc59f7ca2c04"
 dependencies = [
  "aead 0.5.2",
  "aes",
  "byte",
  "ccm 0.5.0",
+ "defmt-or-log",
  "embedded-hal-async",
  "embedded-storage-async",
  "heapless 0.9.3",
@@ -2135,9 +2158,11 @@ dependencies = [
 [[package]]
 name = "zigbee-mac"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#ddd6856a66fc1c920269b615d6bcfc59f7ca2c04"
 dependencies = [
  "byte",
+ "defmt",
+ "defmt-or-log",
  "embassy-futures",
  "embassy-sync 0.8.0",
  "embassy-time",
@@ -2156,12 +2181,12 @@ dependencies = [
 [[package]]
 name = "zigbee-macros"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#ddd6856a66fc1c920269b615d6bcfc59f7ca2c04"
 
 [[package]]
 name = "zigbee-types"
 version = "0.1.0"
-source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#1ce7e01e7f15e378ecfe2310bd27b003126a851e"
+source = "git+https://github.com/hnsr/zigbee-rs.git?branch=main-fixes#ddd6856a66fc1c920269b615d6bcfc59f7ca2c04"
 dependencies = [
  "atomic-waker",
  "byte",

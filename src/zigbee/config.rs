@@ -41,10 +41,10 @@ const NETWORK_CHANNEL: u8 = 25;
 // Used when no keepalive interval was negotiated with the parent.
 const FALLBACK_KEEPALIVE_INTERVAL_MS: u32 = 10_000;
 
-pub(super) fn build_stack_config(network_id: u64) -> StackConfig<'static> {
+pub(super) fn build_stack_config() -> StackConfig<'static> {
     // fixme: replace network_id parameter with automatic network join logic
     let network_config = NetworkConfig {
-        extended_pan_id: IeeeAddress(network_id),
+        extended_pan_id: IeeeAddress(0),
         channels: (NETWORK_CHANNEL..NETWORK_CHANNEL + 1),
         scan_duration: 5,
     };
