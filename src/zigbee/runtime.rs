@@ -3,6 +3,9 @@ use crate::zigbee::config::build_stack_config;
 use core::ops::Range;
 use embassy_embedded_hal::adapter::BlockingAsync;
 use embassy_executor::Spawner;
+use embassy_futures::select::{Either, select};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
 use embassy_time::Delay as AsyncDelay;
 use embassy_time::{Duration, Ticker};
 use esp_hal::peripherals::{FLASH, IEEE802154};
@@ -49,6 +52,12 @@ fn init_radio_mac(ieee802154: IEEE802154<'_>) -> EspMlme<'_> {
     mac
 }
 
+static FORGET_NETWORK: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+
+pub fn request_network_reset() {
+    FORGET_NETWORK.signal(());
+}
+
 pub async fn start_zigbee(
     spawner: Spawner,
     ieee802154: IEEE802154<'static>,
@@ -66,6 +75,12 @@ pub async fn start_zigbee(
     let handler = build_handler(lamp_state);
     let mac = init_radio_mac(ieee802154);
     let storage = init_storage(flash).await;
+
+    log::info!(
+        "Restored Zigbee channel: {}",
+        zigbee::nwk::nib::get_ref().operating_channel(),
+    );
+
     let stack_config = build_stack_config();
 
     log::info!("Zigbee configuration: extended_PAN={:#018x}, channel={}, capabilities={:#04x}",
@@ -91,12 +106,27 @@ pub async fn start_zigbee(
 async fn stack_task(stack: &'static ZigbeeStack) {
     log::info!("Starting Zigbee stack");
 
-    // Drive commissioning, incoming frames, persistence, and keepalive.
-    // During normal operation this remains running indefinitely.
-    let outcome = stack.run(AsyncDelay).await;
+    // We run the stack and await a possible 'reset' signal and let these race. If the stack stops,
+    // we just sit there and wait for a possible reset press (by again awaiting FORGET_NETWORK), if
+    // the signal comes in first, we forget the network and reset the ESP.
 
-    // If it returns, print the reason and retain it for diagnosis.
-    log::error!("Zigbee stack stopped: {outcome:?}");
+    let outcome = select(
+        FORGET_NETWORK.wait(),
+        stack.run(AsyncDelay),
+    ).await;
+
+    if let Either::Second(reason) = outcome {
+        log::error!("Zigbee stack stopped: {reason:?}");
+
+        // Keep the reset button usable even if joining failed
+        FORGET_NETWORK.wait().await;
+    }
+
+    // The run future has now been dropped, stopping its network activity. Awaiting forget_network
+    // ensures its flash flush finishes first.
+    log::info!("Forgetting Zigbee network");
+    stack.forget_network().await;
+    esp_hal::system::software_reset();
 }
 
 #[embassy_executor::task]

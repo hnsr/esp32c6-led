@@ -24,6 +24,7 @@ use esp32c6_led::layout::Linear;
 use esp32c6_led::render::{RenderContext, render};
 use esp32c6_led::zigbee::lamp::LampCapabilities;
 use esp32c6_led::zigbee::start_zigbee;
+use esp32c6_led::zigbee::request_network_reset;
 use esp32c6_led::button::{BUTTON_EVENTS, ButtonEvent, button_task};
 
 #[panic_handler]
@@ -128,7 +129,8 @@ async fn main(spawner: Spawner) -> ! {
                     println!("Switching to effect {}", active_effect);
                 }
                 ButtonEvent::LongPress => {
-                    println!("Resetting ZigBee network state")
+                    println!("Resetting ZigBee network state");
+                    request_network_reset();
                 }
             }
         }
