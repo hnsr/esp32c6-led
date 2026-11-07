@@ -104,7 +104,7 @@ async fn main(spawner: Spawner) -> ! {
 
     let lamp_capabilities = LampCapabilities::from_hardware(&config);
 
-    println!("Starting zigbee");
+    println!("Starting Zigbee");
     let lamp_state = start_zigbee(
         spawner,
         peripherals.IEEE802154,
@@ -129,7 +129,7 @@ async fn main(spawner: Spawner) -> ! {
                     println!("Switching to effect {}", active_effect);
                 }
                 ButtonEvent::LongPress => {
-                    println!("Resetting ZigBee network state");
+                    println!("Resetting Zigbee network state");
                     request_network_reset();
                 }
             }

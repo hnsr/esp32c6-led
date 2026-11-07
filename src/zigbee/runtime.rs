@@ -12,6 +12,8 @@ use esp_hal::peripherals::{FLASH, IEEE802154};
 use esp_radio::ieee802154::Ieee802154;
 use esp_storage::FlashStorage;
 use static_cell::StaticCell;
+use zigbee::StackStopped;
+use zigbee::nwk::nlme::management::NlmeJoinStatus;
 use zigbee_mac::esp::EspMlme;
 use crate::zigbee::lamp::{LampCapabilities, LampState, SharedLampState};
 
@@ -112,7 +114,7 @@ async fn stack_task(stack: &'static ZigbeeStack) {
 
     let outcome = select(
         FORGET_NETWORK.wait(),
-        stack.run(AsyncDelay),
+        run_with_pairing_retries(stack),
     ).await;
 
     if let Either::Second(reason) = outcome {
@@ -156,5 +158,54 @@ async fn maintenance_task(stack: &'static ZigbeeStack) {
                 IDENTIFY.identify_time(),
             );
         }
+    }
+}
+
+async fn run_with_pairing_retries(stack: &'static ZigbeeStack) -> StackStopped {
+    const MAX_ATTEMPTS: u8 = 5;
+    const RETRY_DELAY: u64 = 5;
+
+    // Remember if we initially started in paired state - 0xffff means no assigned network address
+    let started_unpaired =
+        zigbee::nwk::nib::get_ref().network_address() == 0xffff;
+
+    if started_unpaired {
+        log::info!("Running stack (currently not paired)")
+    } else {
+        log::info!("Running stack (already paired)")
+    }
+
+    let mut attempt = 1;
+
+    loop {
+        // On success, run will always keep running. It returns if commissioning or recovery (i.e.
+        // after losing connection) fails
+        let reason = stack.run(AsyncDelay).await;
+
+        // Check if we are supposed to retry, or if we should return. There are some cases where we want to keep trying for a bit:
+        // - Pairing after user reset (the coordinator may not allow new devices _yet_, so we
+        //   should keep trying for a bit)
+        // - todo: recomissioning failed due to some transient error, or outage (we should probably
+        //         _always_ keep trying in that case?)
+        let retryable = started_unpaired
+            && zigbee::nwk::nib::get_ref().network_address() == 0xffff
+            && matches!(
+                &reason,
+                StackStopped::Commissioning(NlmeJoinStatus::NotPermitted)
+            );
+
+        if !retryable || attempt >= MAX_ATTEMPTS {
+            return reason;
+        }
+
+        log::warn!(
+            "Pairing attempt {}/{} failed; retrying in 5 seconds",
+            attempt,
+            MAX_ATTEMPTS,
+        );
+
+        // Idle (suspend) for a bit so other things can run
+        embassy_time::Timer::after_secs(RETRY_DELAY).await;
+        attempt += 1;
     }
 }
